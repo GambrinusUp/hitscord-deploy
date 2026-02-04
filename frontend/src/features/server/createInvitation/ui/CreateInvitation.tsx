@@ -5,9 +5,9 @@ import { useState } from 'react';
 import { useAppDispatch, useAppSelector } from '~/hooks';
 import { createInvitation } from '~/store/ServerStore';
 
-const FRONTEND_URL = import.meta.env.VITE_BASE_URL?.replace('/api', '') || 'https://hitscord.site';
+//const FRONTEND_URL = import.meta.env.VITE_BASE_URL?.replace('/api', '') || 'https://hitscord.site';
 const getInviteLink = (invitationString: string) =>
-  `${FRONTEND_URL}/#/invite/${invitationString}`;
+  `https://hitscord.site/#/invite/${invitationString}`;
 
 interface CreateInvitationProps {
   opened: boolean;
@@ -85,9 +85,7 @@ export const CreateInvitation = ({
               color="gray"
               title="Приглашение создано!"
             >
-              <CopyButton
-                value={getInviteLink(invitationString)}
-              >
+              <CopyButton value={getInviteLink(invitationString)}>
                 {({ copied, copy }) => (
                   <Button radius="md" variant="light" onClick={copy}>
                     {copied ? 'Скопировано' : 'Скопировать ссылку'}
