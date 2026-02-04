@@ -1,0 +1,12 @@
+version: '3.9'
+
+services:
+  hitscord-frontend:
+    build: .
+    container_name: hitscord-frontend
+    ports:
+      - "8080:80"
+    environment:
+      - VITE_BASE_URL=${VITE_BASE_URL}
+      - VITE_MEDIA_URL=${VITE_MEDIA_URL}
+    restart: unless-stopped

@@ -1,0 +1,1 @@
+export { ChangeNameModal } from './ChangeNameModal';

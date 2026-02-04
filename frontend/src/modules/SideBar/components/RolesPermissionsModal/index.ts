@@ -1,0 +1,1 @@
+export { RolesPermissionsModal } from './RolesPermissionsModal';

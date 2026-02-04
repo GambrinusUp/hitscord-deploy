@@ -1,0 +1,10 @@
+export const FRIENDSHIP_SLICE_NAME = 'friendship';
+
+export const CREATE_APPLICATION_ACTION_NAME = `${FRIENDSHIP_SLICE_NAME}/createApplication`;
+export const GET_APPLICATIONS_FROM_ACTION_NAME = `${FRIENDSHIP_SLICE_NAME}/getApplicationsFrom`;
+export const GET_APPLICATIONS_TO_ACTION_NAME = `${FRIENDSHIP_SLICE_NAME}/getApplicationsTo`;
+export const APPROVE_APPLICATION_ACTION_NAME = `${FRIENDSHIP_SLICE_NAME}/approveApplication`;
+export const DECLINE_APPLICATION_ACTION_NAME = `${FRIENDSHIP_SLICE_NAME}/declineApplication`;
+export const DELETE_APPLICATION_ACTION_NAME = `${FRIENDSHIP_SLICE_NAME}/deleteApplication`;
+export const GET_FRIENDSHIP_LIST_ACTION_NAME = `${FRIENDSHIP_SLICE_NAME}/getFriendshipList`;
+export const DELETE_FRIENDSHIP_ACTION_NAME = `${FRIENDSHIP_SLICE_NAME}/deleteFriendship`;

@@ -1,0 +1,1 @@
+export { EditSettings } from './editSettings';
