@@ -94,7 +94,6 @@ export const MediaProvider = (props: React.PropsWithChildren) => {
     });
 
     socket.on('updateUsersList', ({ rooms }) => {
-      console.log(rooms);
       setUsers(rooms);
     });
 

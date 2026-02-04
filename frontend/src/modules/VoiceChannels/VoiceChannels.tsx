@@ -117,7 +117,7 @@ export const VoiceChannels = () => {
       { targetSocketId: socketId },
       (response: { success: boolean; message: string }) => {
         if (response.success) {
-          console.log('Пользователь успешно кикнут:', response.message);
+          return;
         } else {
           console.error('Ошибка кикания пользователя:', response.message);
         }
@@ -148,8 +148,6 @@ export const VoiceChannels = () => {
   };
 
   const handleMuteUser = (userId: string, isMuted: boolean | undefined) => {
-    console.log(isMuted);
-
     if (isMuted) {
       socket.emit(
         'unmuteUserById',
@@ -160,7 +158,8 @@ export const VoiceChannels = () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (response: any) => {
           if (response.success) {
-            console.log(response.message);
+            //console.log(response.message);
+            return;
           } else {
             console.error('Ошибка при анмуте:', response.message);
           }
