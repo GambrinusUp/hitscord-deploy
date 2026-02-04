@@ -1,6 +1,11 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+ARG VITE_BASE_URL
+ARG VITE_MEDIA_URL
+ENV VITE_BASE_URL=${VITE_BASE_URL}
+ENV VITE_MEDIA_URL=${VITE_MEDIA_URL}
+
 COPY package*.json ./
 RUN npm install
 

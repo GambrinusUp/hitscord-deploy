@@ -18,7 +18,7 @@ export default defineConfig({
       },
     },
   },
-  base: '/hitscord-frontend',
+  //base: '/hitscord-frontend',
   /*server: {
     https: {
       key: fs.readFileSync('key.pem'),

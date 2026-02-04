@@ -1,0 +1,68 @@
+version: "3.9"
+
+services:
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.le.acme.tlschallenge=true
+      - --certificatesresolvers.le.acme.email=${LETSENCRYPT_EMAIL}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-letsencrypt:/letsencrypt
+    restart: unless-stopped
+    networks:
+      - web
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_BASE_URL: ${VITE_BASE_URL}
+        VITE_MEDIA_URL: ${VITE_MEDIA_URL}
+    container_name: hitscord-frontend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.tls.certresolver=le"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+    networks:
+      - web
+    restart: unless-stopped
+
+  media-server:
+    build:
+      context: ./media-server
+    container_name: hitscord-media
+    env_file:
+      - .env
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.media.rule=Host(`api.${DOMAIN}`) || Host(`${BACKEND_DOMAIN}`)"
+      - "traefik.http.routers.media.entrypoints=websecure"
+      - "traefik.http.routers.media.tls=true"
+      - "traefik.http.routers.media.tls.certresolver=le"
+      - "traefik.http.services.media.loadbalancer.server.port=3000"
+    ports:
+      - "3000:3000"
+      - "${RTC_MIN_PORT}-${RTC_MAX_PORT}:${RTC_MIN_PORT}-${RTC_MAX_PORT}/udp"
+    networks:
+      - web
+    restart: unless-stopped
+
+volumes:
+  traefik-letsencrypt:
+
+networks:
+  web:
+    external: false

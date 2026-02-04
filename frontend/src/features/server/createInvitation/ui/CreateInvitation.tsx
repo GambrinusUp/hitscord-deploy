@@ -5,6 +5,10 @@ import { useState } from 'react';
 import { useAppDispatch, useAppSelector } from '~/hooks';
 import { createInvitation } from '~/store/ServerStore';
 
+const FRONTEND_URL = import.meta.env.VITE_BASE_URL?.replace('/api', '') || 'https://hitscord.site';
+const getInviteLink = (invitationString: string) =>
+  `${FRONTEND_URL}/#/invite/${invitationString}`;
+
 interface CreateInvitationProps {
   opened: boolean;
   onClose: () => void;
@@ -82,7 +86,7 @@ export const CreateInvitation = ({
               title="Приглашение создано!"
             >
               <CopyButton
-                value={`https://gambrinusup.github.io/hitscord-frontend/#/invite/${invitationString}`}
+                value={getInviteLink(invitationString)}
               >
                 {({ copied, copy }) => (
                   <Button radius="md" variant="light" onClick={copy}>
