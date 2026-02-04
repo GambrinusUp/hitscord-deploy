@@ -48,11 +48,13 @@ services:
       - .env
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.media.rule=Host(`api.${DOMAIN}`) || Host(`${BACKEND_DOMAIN}`)"
+      - "traefik.http.routers.media.rule=Host(`hitscord.site`) && PathPrefix(`/mediasoup`)"
       - "traefik.http.routers.media.entrypoints=websecure"
       - "traefik.http.routers.media.tls=true"
       - "traefik.http.routers.media.tls.certresolver=le"
       - "traefik.http.services.media.loadbalancer.server.port=3000"
+      - "traefik.http.routers.media.middlewares=media-stripprefix"
+      - "traefik.http.middlewares.media-stripprefix.stripprefix.prefixes=/mediasoup"
     ports:
       - "3000:3000"
       - "${RTC_MIN_PORT}-${RTC_MAX_PORT}:${RTC_MIN_PORT}-${RTC_MAX_PORT}/udp"
