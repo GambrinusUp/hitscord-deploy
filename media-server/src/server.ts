@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
-import https from "https";
+import http from "http";
 import { Server } from "socket.io";
 import { store } from "./store/store";
 import routes from "./routes/routes";
@@ -33,17 +33,12 @@ app.use(express.json());
 //app.use("/sfu/:room", express.static(path.join(process.cwd(), "public")));
 //app.use(routes);
 
-const options = {
-  key: fs.readFileSync(process.env.SSL_KEY_PATH!),
-  cert: fs.readFileSync(process.env.SSL_CERT_PATH!),
-};
-
-const httpsServer = https.createServer(options, app);
-httpsServer.listen(Number(process.env.PORT), "0.0.0.0", () => {
-  console.log(`Media server listening on https://0.0.0.0:${process.env.PORT}`);
+const httpServer = http.createServer(app);
+httpServer.listen(Number(process.env.PORT), "0.0.0.0", () => {
+  console.log(`Media server listening on http://0.0.0.0:${process.env.PORT}`);
 });
 
-const io = new Server(httpsServer, {
+const io = new Server(httpServer, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"],
