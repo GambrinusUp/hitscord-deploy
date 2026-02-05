@@ -10,6 +10,7 @@ import {
   SettingType,
   type SettingsForm,
 } from '~/entities/user';
+import { ChangeProfileData } from '~/entities/user/model/types';
 import { useAppDispatch, useAppSelector, useNotification } from '~/hooks';
 
 interface EditSettingsProps {
@@ -87,9 +88,19 @@ export const EditSettings = ({
     }
 
     if (values.email !== user.mail || values.name !== user.name) {
+      const updatedFields: Partial<ChangeProfileData> = {};
+
+      if (values.name !== user.name) {
+        updatedFields.name = values.name;
+      }
+
+      if (values.email !== user.mail) {
+        updatedFields.mail = values.email;
+      }
+
       const result = await dispatch(
         changeUserProfile({
-          newProfile: { name: values.name, mail: values.email },
+          newProfile: updatedFields,
         }),
       );
 

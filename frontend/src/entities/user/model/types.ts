@@ -44,8 +44,8 @@ export enum SettingType {
 }
 
 export interface ChangeProfileData {
-  name: string;
-  mail: string;
+  name?: string;
+  mail?: string;
 }
 
 export interface UserState {
