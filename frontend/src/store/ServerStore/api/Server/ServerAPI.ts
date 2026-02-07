@@ -197,7 +197,7 @@ export const changeNotifiable = async (serverId: string): Promise<void> => {
 
 export const createInvitation = async (
   serverId: string,
-  expiredAt: string,
+  expiredAt?: string,
 ): Promise<{
   invitationString: string;
 }> => {

@@ -31,19 +31,13 @@ export const CreateInvitation = ({
   const invitationString = serverData.invitationString;
 
   const handleCreate = async () => {
-    if (!selectedDate) {
-      setError('Выберите дату и время истечения приглашения');
-
-      return;
-    }
-
     setIsCreating(true);
     setError(null);
 
     dispatch(
       createInvitation({
         serverId: currentServerId!,
-        expiredAt: selectedDate.toISOString(),
+        expiredAt: selectedDate ? selectedDate.toISOString() : undefined,
       }),
     );
 
@@ -64,7 +58,7 @@ export const CreateInvitation = ({
     >
       <Stack gap="md">
         <DateTimePicker
-          description="Время истечения приглашения (минимум +10 минут)"
+          description={'Дата необязательна'}
           value={selectedDate}
           onChange={setSelectedDate}
           minDate={minDate}
@@ -106,7 +100,7 @@ export const CreateInvitation = ({
         ) : (
           <Button
             onClick={handleCreate}
-            disabled={!selectedDate || isCreating}
+            disabled={isCreating}
             loading={isCreating}
             fullWidth
           >
