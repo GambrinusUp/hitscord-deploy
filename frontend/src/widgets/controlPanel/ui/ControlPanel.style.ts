@@ -29,6 +29,11 @@ export const stylesControlPanel = {
     color: '#FFFFFF',
     border: 'none',
   }),
+  settingsIcon: (): MantineStyleProp => ({
+    backgroundColor: '#2C2E33',
+    color: '#FFFFFF',
+    border: 'none',
+  }),
   disconnectIcon: (): MantineStyleProp => ({
     backgroundColor: '#2C2E33',
     color: '#FA5252',

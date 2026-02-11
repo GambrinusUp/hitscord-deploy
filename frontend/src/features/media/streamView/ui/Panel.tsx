@@ -11,14 +11,19 @@ const stylesPanel = {
     overflow: 'hidden',
     gap: '8px',
     padding: '10px 8px',
+    height: '132px',
+    flexShrink: 0,
+    width: '100%',
+    maxWidth: '100%',
   }),
   scrollBox: (): MantineStyleProp => ({
     display: 'flex',
     gap: '8px',
-    minWidth: 'min-content',
+    width: 'max-content',
     height: '100%',
     alignItems: 'center',
     padding: '0 4px',
+    flexWrap: 'nowrap',
   }),
 };
 
@@ -59,6 +64,7 @@ export const Panel = ({ children }: PanelProps) => {
         style={{
           flex: 1,
           height: '100%',
+          minWidth: 0,
         }}
       >
         <Box style={stylesPanel.scrollBox()}>{children}</Box>

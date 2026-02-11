@@ -117,7 +117,7 @@ export const VoiceChannels = () => {
       { targetSocketId: socketId },
       (response: { success: boolean; message: string }) => {
         if (response.success) {
-          return;
+          console.log('Пользователь успешно кикнут:', response.message);
         } else {
           console.error('Ошибка кикания пользователя:', response.message);
         }
@@ -148,6 +148,8 @@ export const VoiceChannels = () => {
   };
 
   const handleMuteUser = (userId: string, isMuted: boolean | undefined) => {
+    console.log(isMuted);
+
     if (isMuted) {
       socket.emit(
         'unmuteUserById',
@@ -158,8 +160,7 @@ export const VoiceChannels = () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (response: any) => {
           if (response.success) {
-            //console.log(response.message);
-            return;
+            console.log(response.message);
           } else {
             console.error('Ошибка при анмуте:', response.message);
           }
@@ -230,7 +231,7 @@ export const VoiceChannels = () => {
                   }
                   channelType={ChannelType.VOICE_CHANNEL}
                 />
-                <Stack gap="xs">
+                <Stack gap="xs" style={{ width: '100%', minWidth: 0 }}>
                   {rooms
                     .filter((room) => room.roomName === channelId)
                     .flatMap((room) =>

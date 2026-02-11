@@ -5,5 +5,10 @@ export {
   createDevice,
   createSendTransport,
   getLocalAudioStream,
+  calculateMicGain,
+  getDefaultMicSettings,
+  type MicAudioState,
+  type MicSettings,
   joinRoom,
+  resetConsumerTransportState,
 } from './utils';

@@ -7,6 +7,7 @@ export const stylesStreamView = {
     flexDirection: 'column',
     backgroundColor: '#2C2E33',
     overflow: 'hidden',
+    minWidth: 0,
   }),
   box: (): MantineStyleProp => ({
     position: 'relative',
@@ -14,5 +15,6 @@ export const stylesStreamView = {
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
+    minWidth: 0,
   }),
 };

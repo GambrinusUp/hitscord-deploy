@@ -133,13 +133,9 @@ export const WebSocketProvider = (props: React.PropsWithChildren) => {
 
   useEffect(() => {
     if (accessToken) {
-      const baseUrl =
-        import.meta.env.VITE_BASE_URL ||
-        'https://196673.msk.web.highserver.ru/api';
-      const wsUrl = baseUrl
-        .replace(/^https?/, 'wss')
-        .replace(/\/api$/, '/api/wss');
-      const ws = new WebSocket(`${wsUrl}?accessToken=${accessToken}`);
+      const ws = new WebSocket(
+        `wss://166664.msk.web.highserver.ru/api/wss?accessToken=${accessToken}`,
+      );
 
       ws.onopen = () => {
         setInterval(
@@ -164,6 +160,8 @@ export const WebSocketProvider = (props: React.PropsWithChildren) => {
         const currentChannelIdValue = currentChannelIdRef.current;
         const currentChatIdValue = currentChatIdRef.current;
         const userIdValue = userIdRef.current;
+
+        console.log(data);
 
         if (data.MessageType === 'New user on server') {
           const formattedUser = formatUser(data.Payload);

@@ -5,6 +5,7 @@ export const userItemStyles = {
     width: '100%',
     overflow: 'hidden',
     cursor: 'pointer',
+    flexWrap: 'nowrap',
   }),
   userName: (): MantineStyleProp => ({
     flex: 1,

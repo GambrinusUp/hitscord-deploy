@@ -121,6 +121,7 @@ export const SideBar = ({ onClose }: SideBarProps) => {
         p={`10px 10px ${isConnected ? 130 : 85}px 10px`}
         //w={{ base: 150, lg: 250 }}
         miw={250}
+        maw={250}
         h="100%"
         visibleFrom="sm"
       >

@@ -8,16 +8,74 @@ import { Socket } from 'socket.io-client';
 import { socket } from '~/api/socket';
 import { MuteStatus } from '~/store/ServerStore';
 
-export const getLocalAudioStream = async () => {
+let consumerTransportPromise: Promise<Transport> | null = null;
+
+export const resetConsumerTransportState = () => {
+  consumerTransportPromise = null;
+};
+
+export type MicSettings = {
+  volume: number;
+  gainDb: number;
+  noiseSuppression: boolean;
+  echoCancellation: boolean;
+  autoGainControl: boolean;
+};
+
+export type MicAudioState = {
+  rawTrack: MediaStreamTrack;
+  processedTrack: MediaStreamTrack;
+  audioContext: AudioContext;
+  gainNode: GainNode;
+};
+
+export const getDefaultMicSettings = (): MicSettings => ({
+  volume: 80,
+  gainDb: 0,
+  noiseSuppression: true,
+  echoCancellation: true,
+  autoGainControl: false,
+});
+
+export const calculateMicGain = (settings: MicSettings) => {
+  const volume = Math.max(0, Math.min(100, settings.volume));
+  const gainDb = Math.max(-10, Math.min(20, settings.gainDb));
+  const dbGain = Math.pow(10, gainDb / 20);
+
+  return (volume / 100) * dbGain;
+};
+
+export const getLocalAudioStream = async (
+  settings?: MicSettings,
+): Promise<MicAudioState> => {
+  const micSettings = settings ?? getDefaultMicSettings();
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: {
-      noiseSuppression: true,
-      echoCancellation: false,
-      autoGainControl: false,
+      noiseSuppression: micSettings.noiseSuppression,
+      echoCancellation: micSettings.echoCancellation,
+      autoGainControl: micSettings.autoGainControl,
     },
   });
 
-  return stream.getAudioTracks()[0];
+  const rawTrack = stream.getAudioTracks()[0];
+  const audioContext = new AudioContext();
+  const source = audioContext.createMediaStreamSource(stream);
+  const gainNode = audioContext.createGain();
+  const destination = audioContext.createMediaStreamDestination();
+
+  gainNode.gain.value = calculateMicGain(micSettings);
+  source.connect(gainNode).connect(destination);
+
+  if (audioContext.state === 'suspended') {
+    await audioContext.resume();
+  }
+
+  return {
+    rawTrack,
+    processedTrack: destination.stream.getAudioTracks()[0],
+    audioContext,
+    gainNode,
+  };
 };
 
 export const joinRoom = async (
@@ -62,6 +120,8 @@ export const createSendTransport = async (
   audioTrack: MediaStreamTrack,
   setAudioProducer: React.Dispatch<React.SetStateAction<Producer | null>>,
   addConsumer: (consumer: Consumer) => void,
+  consumerTransport: Transport | null,
+  setConsumerTransport: React.Dispatch<React.SetStateAction<Transport | null>>,
 ): Promise<Transport> =>
   new Promise((resolve, reject) => {
     socket.emit(
@@ -94,7 +154,13 @@ export const createSendTransport = async (
             },
             ({ id }: { id: string }) => {
               callback({ id });
-              getProducers(socket, device, addConsumer);
+              getProducers(
+                socket,
+                device,
+                addConsumer,
+                consumerTransport,
+                setConsumerTransport,
+              );
             },
           );
         });
@@ -118,10 +184,18 @@ export const getProducers = (
   socket: Socket,
   device: Device,
   addConsumer: (consumer: Consumer) => void,
+  consumerTransport: Transport | null,
+  setConsumerTransport: React.Dispatch<React.SetStateAction<Transport | null>>,
 ) => {
   socket.emit('getProducers', (producerIds: string[]) => {
     producerIds.forEach((remoteProducerId) =>
-      signalNewConsumerTransport(remoteProducerId, device, addConsumer),
+      signalNewConsumerTransport(
+        remoteProducerId,
+        device,
+        addConsumer,
+        consumerTransport,
+        setConsumerTransport,
+      ),
     );
   });
 };
@@ -130,31 +204,66 @@ export const signalNewConsumerTransport = async (
   remoteProducerId: string,
   device: Device | null,
   addConsumer: (consumer: Consumer) => void,
+  consumerTransport: Transport | null,
+  setConsumerTransport: React.Dispatch<React.SetStateAction<Transport | null>>,
 ) => {
-  socket.emit(
-    'createWebRtcTransport',
-    { consumer: true },
-    async ({ params }: { params: TransportOptions & { error?: string } }) => {
-      if (params.error) return;
+  if (!device) return;
 
-      const consumerTransport = device!.createRecvTransport(params);
-      consumerTransport.on('connect', ({ dtlsParameters }, callback) => {
-        socket.emit('transport-recv-connect', {
-          dtlsParameters,
-          serverConsumerTransportId: params.id,
-        });
-        callback();
-      });
-
-      connectRecvTransport(
-        consumerTransport,
-        remoteProducerId,
-        params.id,
-        device!,
-        addConsumer,
-      );
-    },
+  const activeConsumerTransport = await ensureConsumerTransport(
+    device,
+    consumerTransport,
+    setConsumerTransport,
   );
+
+  connectRecvTransport(
+    activeConsumerTransport,
+    remoteProducerId,
+    activeConsumerTransport.id,
+    device,
+    addConsumer,
+  );
+};
+
+const ensureConsumerTransport = async (
+  device: Device,
+  consumerTransport: Transport | null,
+  setConsumerTransport: React.Dispatch<React.SetStateAction<Transport | null>>,
+): Promise<Transport> => {
+  if (consumerTransport && !consumerTransport.closed) return consumerTransport;
+
+  if (consumerTransportPromise) {
+    const pendingTransport = await consumerTransportPromise;
+
+    if (!pendingTransport.closed) return pendingTransport;
+  }
+
+  consumerTransportPromise = new Promise((resolve, reject) => {
+    socket.emit(
+      'createWebRtcTransport',
+      { consumer: true },
+      async ({ params }: { params: TransportOptions & { error?: string } }) => {
+        if (params.error) {
+          reject(params.error);
+
+          return;
+        }
+
+        const newConsumerTransport = device.createRecvTransport(params);
+        newConsumerTransport.on('connect', ({ dtlsParameters }, callback) => {
+          socket.emit('transport-recv-connect', {
+            dtlsParameters,
+            serverConsumerTransportId: params.id,
+          });
+          callback();
+        });
+
+        setConsumerTransport(newConsumerTransport);
+        resolve(newConsumerTransport);
+      },
+    );
+  });
+
+  return consumerTransportPromise;
 };
 
 const connectRecvTransport = async (
