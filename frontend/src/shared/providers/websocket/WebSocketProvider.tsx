@@ -134,7 +134,7 @@ export const WebSocketProvider = (props: React.PropsWithChildren) => {
   useEffect(() => {
     if (accessToken) {
       const ws = new WebSocket(
-        `wss://166664.msk.web.highserver.ru/api/wss?accessToken=${accessToken}`,
+        `wss://${import.meta.env.VITE_BASE_URL}/wss?accessToken=${accessToken}`,
       );
 
       ws.onopen = () => {
