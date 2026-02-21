@@ -226,7 +226,9 @@ export const getChannelMessages = createAsyncThunk<
 
       if (shouldTryLoadDown) {
         const anchorMessageId =
-          messages.length > 0 ? messages[messages.length - 1].id : fromMessageId;
+          messages.length > 0
+            ? messages[messages.length - 1].id
+            : fromMessageId;
         const numberToLoad =
           number - messages.length + (messages.length > 0 ? 1 : 0);
 
@@ -716,7 +718,7 @@ export const changeSubChannelSettings = createAsyncThunk<
 
 export const createInvitation = createAsyncThunk<
   { invitationString: string },
-  { serverId: string; expiredAt: string },
+  { serverId: string; expiredAt?: string },
   { rejectValue: string }
 >(
   'testServerSlice/createInvitation',

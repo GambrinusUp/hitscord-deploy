@@ -5,6 +5,10 @@ import { useState } from 'react';
 import { useAppDispatch, useAppSelector } from '~/hooks';
 import { createInvitation } from '~/store/ServerStore';
 
+//const FRONTEND_URL = import.meta.env.VITE_BASE_URL?.replace('/api', '') || 'https://hitscord.site';
+const getInviteLink = (invitationString: string) =>
+  `https://hitscord.site/#/invite/${invitationString}`;
+
 interface CreateInvitationProps {
   opened: boolean;
   onClose: () => void;
@@ -27,19 +31,13 @@ export const CreateInvitation = ({
   const invitationString = serverData.invitationString;
 
   const handleCreate = async () => {
-    if (!selectedDate) {
-      setError('Выберите дату и время истечения приглашения');
-
-      return;
-    }
-
     setIsCreating(true);
     setError(null);
 
     dispatch(
       createInvitation({
         serverId: currentServerId!,
-        expiredAt: selectedDate.toISOString(),
+        expiredAt: selectedDate ? selectedDate.toISOString() : undefined,
       }),
     );
 
@@ -60,7 +58,7 @@ export const CreateInvitation = ({
     >
       <Stack gap="md">
         <DateTimePicker
-          description="Время истечения приглашения (минимум +10 минут)"
+          description={'Дата необязательна'}
           value={selectedDate}
           onChange={setSelectedDate}
           minDate={minDate}
@@ -81,9 +79,7 @@ export const CreateInvitation = ({
               color="gray"
               title="Приглашение создано!"
             >
-              <CopyButton
-                value={`https://hitscord.site/#/invite/${invitationString}`}
-              >
+              <CopyButton value={getInviteLink(invitationString)}>
                 {({ copied, copy }) => (
                   <Button radius="md" variant="light" onClick={copy}>
                     {copied ? 'Скопировано' : 'Скопировать ссылку'}
@@ -104,7 +100,7 @@ export const CreateInvitation = ({
         ) : (
           <Button
             onClick={handleCreate}
-            disabled={!selectedDate || isCreating}
+            disabled={isCreating}
             loading={isCreating}
             fullWidth
           >
