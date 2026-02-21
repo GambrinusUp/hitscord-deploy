@@ -43,6 +43,7 @@ import {
   useAppSelector,
   useDisconnect,
 } from '~/hooks';
+import { useAudioSettings } from '~/shared/lib/hooks';
 import sound from '~/shared/static/zapsplat_multimedia_notification_alert_ping_bright_chime_001_93276.mp3';
 import { setOpenHome } from '~/store/AppStore';
 import {
@@ -74,7 +75,8 @@ import {
 } from '~/store/ServerStore';
 
 export const WebSocketProvider = (props: React.PropsWithChildren) => {
-  const [play] = useSound(sound, { volume: 0.35 });
+  const { volume } = useAudioSettings();
+  const [play] = useSound(sound, { volume });
   const dispatch = useAppDispatch();
   const disconnect = useDisconnect();
   const { showMessage, showError } = useNotification();

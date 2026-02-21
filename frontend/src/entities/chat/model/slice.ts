@@ -18,7 +18,6 @@ import {
   Chat,
   GetChats,
   ChatInfo,
-  GetChatMessages,
   UserInChat,
 } from './types';
 
@@ -61,11 +60,11 @@ export const ChatsSlice = createSlice({
       state.activeChat = action.payload;
       state.messages = [];
       state.remainingTopMessagesCount = 0;
-      state.lastTopMessageId= 0;
-      state.remainingBottomMessagesCount= MAX_MESSAGE_NUMBER;
-      state.lastBottomMessageId= 0;
-      state.startMessageId= 0;
-      state.allMessagesCount= 0;
+      state.lastTopMessageId = 0;
+      state.remainingBottomMessagesCount = MAX_MESSAGE_NUMBER;
+      state.lastBottomMessageId = 0;
+      state.startMessageId = 0;
+      state.allMessagesCount = 0;
       state.error = '';
     },
     addChatMessage: (state, action: PayloadAction<ChatMessage>) => {
@@ -107,15 +106,37 @@ export const ChatsSlice = createSlice({
       }>,
     ) => {
       const { readChatId, readedMessageId, isTagged } = action.payload;
+      const chatIndex = state.chatsList.findIndex(
+        (chat) => chat.chatId === readChatId,
+      );
 
       if (state.activeChat === readChatId) {
-        state.chat.nonReadedCount -= 1;
+        state.chat.nonReadedCount = Math.max(0, state.chat.nonReadedCount - 1);
 
         if (isTagged) {
-          state.chat.nonReadedTaggedCount -= 1;
+          state.chat.nonReadedTaggedCount = Math.max(
+            0,
+            state.chat.nonReadedTaggedCount - 1,
+          );
         }
 
         state.chat.lastReadedMessageId = readedMessageId;
+      }
+
+      if (chatIndex >= 0) {
+        state.chatsList[chatIndex].nonReadedCount = Math.max(
+          0,
+          state.chatsList[chatIndex].nonReadedCount - 1,
+        );
+
+        if (isTagged) {
+          state.chatsList[chatIndex].nonReadedTaggedCount = Math.max(
+            0,
+            state.chatsList[chatIndex].nonReadedTaggedCount - 1,
+          );
+        }
+
+        state.chatsList[chatIndex].lastReadedMessageId = readedMessageId;
       }
     },
     changeChatReadedCount: (
@@ -153,9 +174,16 @@ export const ChatsSlice = createSlice({
       action: PayloadAction<{ readChatId: string; readedMessageId: number }>,
     ) => {
       const { readChatId, readedMessageId } = action.payload;
+      const chatIndex = state.chatsList.findIndex(
+        (chat) => chat.chatId === readChatId,
+      );
 
       if (state.activeChat === readChatId) {
         state.chat.lastReadedMessageId = readedMessageId;
+      }
+
+      if (chatIndex >= 0) {
+        state.chatsList[chatIndex].lastReadedMessageId = readedMessageId;
       }
     },
     addUserInChatWs: (state, action: PayloadAction<UserInChat>) => {
@@ -301,42 +329,29 @@ export const ChatsSlice = createSlice({
         state.error = '';
       })
       // обработать случаи, когда массив пустой
-      .addCase(
-        getChatMessages.fulfilled,
-        (state, action: PayloadAction<GetChatMessages>) => {
-          const { payload } = action;
-          const { messages, allMessagesCount, remainingMessagesCount } =
-            payload;
+      .addCase(getChatMessages.fulfilled, (state, action) => {
+        const { payload } = action;
+        const {
+          messages,
+          allMessagesCount,
+          remainingTopMessagesCount,
+          remainingBottomMessagesCount,
+        } = payload;
 
-          state.messages = messages;
+        state.messages = messages;
 
-          //
-          if (messages.length > 0) {
-            state.remainingTopMessagesCount = remainingMessagesCount;
-          } else {
-            state.remainingTopMessagesCount = 0;
-          }
+        state.remainingTopMessagesCount = remainingTopMessagesCount;
+        state.remainingBottomMessagesCount = remainingBottomMessagesCount;
 
-          state.lastTopMessageId = messages.length > 0 ? messages[0].id : 0;
-          state.lastBottomMessageId =
-            messages.length > 0 ? messages[messages.length - 1].id : 0;
+        state.lastTopMessageId = messages.length > 0 ? messages[0].id : 0;
+        state.lastBottomMessageId =
+          messages.length > 0 ? messages[messages.length - 1].id : 0;
 
-          if (messages.length > 0) {
-            const lastMessage = messages[messages.length - 1];
-
-            if (lastMessage?.id === allMessagesCount) {
-              state.remainingBottomMessagesCount = 0;
-            }
-          } else if (allMessagesCount === 0) {
-            state.remainingBottomMessagesCount = 0;
-          }
-
-          state.allMessagesCount = allMessagesCount;
-          //state.startMessageId = startMessageId;
-          state.messagesStatus = LoadingState.FULFILLED;
-          state.error = '';
-        },
-      )
+        state.allMessagesCount = allMessagesCount;
+        //state.startMessageId = startMessageId;
+        state.messagesStatus = LoadingState.FULFILLED;
+        state.error = '';
+      })
       .addCase(getChatMessages.rejected, (state, action) => {
         state.messagesStatus = LoadingState.REJECTED;
         state.error = action.payload as string;
@@ -350,14 +365,48 @@ export const ChatsSlice = createSlice({
         const { messages, remainingMessagesCount, allMessagesCount } = payload;
         const { down } = meta.arg;
 
+        if (messages.length === 0) {
+          if (down) {
+            state.remainingBottomMessagesCount = 0;
+          } else {
+            state.remainingTopMessagesCount = 0;
+          }
+
+          state.messageIsLoading = LoadingState.FULFILLED;
+          state.allMessagesCount = allMessagesCount;
+          state.error = '';
+
+          return;
+        }
+
         if (!down) {
           const newMessages = messages.slice(0, -1);
+
+          if (newMessages.length === 0) {
+            state.remainingTopMessagesCount = 0;
+            state.messageIsLoading = LoadingState.FULFILLED;
+            state.allMessagesCount = allMessagesCount;
+            state.error = '';
+
+            return;
+          }
+
           state.messages = [...newMessages, ...state.messages];
 
           state.remainingTopMessagesCount = remainingMessagesCount;
           state.lastTopMessageId = messages[0].id;
         } else {
           const newMessages = messages.slice(1);
+
+          if (newMessages.length === 0) {
+            state.remainingBottomMessagesCount = 0;
+            state.messageIsLoading = LoadingState.FULFILLED;
+            state.allMessagesCount = allMessagesCount;
+            state.error = '';
+
+            return;
+          }
+
           state.messages = [...state.messages, ...newMessages];
 
           state.remainingBottomMessagesCount = remainingMessagesCount;

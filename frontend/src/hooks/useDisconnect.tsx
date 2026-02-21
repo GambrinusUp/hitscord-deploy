@@ -2,6 +2,7 @@ import { useSound } from 'use-sound';
 
 import { socket } from '~/api/socket';
 import { resetConsumerTransportState, useMediaContext } from '~/context';
+import { useAudioSettings } from '~/shared/lib/hooks';
 import sound from '~/shared/static/zapsplat_multimedia_alert_prompt_mallet_marimba_warning_or_error_104796.mp3';
 
 export const useDisconnect = () => {
@@ -18,7 +19,8 @@ export const useDisconnect = () => {
     setConsumerTransport,
     clearMicAudioState,
   } = useMediaContext();
-  const [play] = useSound(sound, { volume: 0.35 });
+  const { volume } = useAudioSettings();
+  const [play] = useSound(sound, { volume });
 
   const disconnect = async (accessToken: string, voiceChannelId: string) => {
     setIsMuted(false);

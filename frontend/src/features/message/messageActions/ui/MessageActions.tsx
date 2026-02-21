@@ -8,18 +8,14 @@ import { useWebSocket } from '~/shared/lib/websocket';
 interface MessageActionsProps {
   messageId: number;
   type: MessageType;
-  setIsEditing: (value: boolean) => void;
-  setEditedContent: (value: React.SetStateAction<string>) => void;
-  messageContent: string;
+  onEdit: () => void;
   isOwnMessage: boolean;
 }
 
 export const MessageActions = ({
   messageId,
   type,
-  setIsEditing,
-  setEditedContent,
-  messageContent,
+  onEdit,
   isOwnMessage,
 }: MessageActionsProps) => {
   const { accessToken } = useAppSelector((state) => state.userStore);
@@ -58,15 +54,10 @@ export const MessageActions = ({
     }
   };
 
-  const handleEdit = () => {
-    setEditedContent(messageContent);
-    setIsEditing(true);
-  };
-
   return (
     <>
       {isOwnMessage && (
-        <Menu.Item leftSection={<Edit2 size={12} />} onClick={handleEdit}>
+        <Menu.Item leftSection={<Edit2 size={12} />} onClick={onEdit}>
           Редактировать
         </Menu.Item>
       )}

@@ -4,21 +4,32 @@ import { useState } from 'react';
 
 import { ChatMessage } from '~/entities/chat';
 import { MessageType } from '~/entities/message';
+import { EditConfiguration } from '~/features/settings';
 import { useAppSelector } from '~/hooks';
+import { ChannelMessage } from '~/store/ServerStore';
 
 interface ProfileContentProps {
-  activeLink: 'friends' | 'settings' | 'chats' | 'serverApplications';
+  activeLink:
+    | 'friends'
+    | 'profileSettings'
+    | 'settings'
+    | 'chats'
+    | 'serverApplications';
   ChatSection: React.ComponentType<{
     MessagesList: React.ComponentType<{
       scrollRef: React.RefObject<HTMLDivElement>;
       type: MessageType;
-      replyToMessage: (message: ChatMessage) => void;
+      replyToMessage: (message: ChatMessage | ChannelMessage) => void;
+      onEditMessage?: (message: ChatMessage | ChannelMessage) => void;
+      onScrollToReplyMessage?: (replyMessageId: number) => void;
     }>;
   }>;
   MessagesList: React.ComponentType<{
     scrollRef: React.RefObject<HTMLDivElement>;
     type: MessageType;
-    replyToMessage: (message: ChatMessage) => void;
+    replyToMessage: (message: ChatMessage | ChannelMessage) => void;
+    onEditMessage?: (message: ChatMessage | ChannelMessage) => void;
+    onScrollToReplyMessage?: (replyMessageId: number) => void;
   }>;
   Settings: React.ComponentType;
   FriendshipList: React.ComponentType;
@@ -51,7 +62,7 @@ export const ProfileContent = ({
     <Box
       style={{
         flex: 1,
-        padding: '10px',
+
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: '#2C2E33',
@@ -70,7 +81,8 @@ export const ProfileContent = ({
             )}
           </>
         )}
-        {activeLink === 'settings' && <Settings />}
+        {activeLink === 'profileSettings' && <Settings />}
+        {activeLink === 'settings' && <EditConfiguration />}
         {activeLink === 'friends' && (
           <Stack gap="xs" w="100%" h="100%" p={10}>
             <Group justify="space-between" mb="md">

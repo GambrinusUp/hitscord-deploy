@@ -471,12 +471,20 @@ const testServerSlice = createSlice({
       if (indexTextChannel >= 0) {
         state.serverData.channels.textChannels[
           indexTextChannel
-        ].nonReadedCount -= 1;
+        ].nonReadedCount = Math.max(
+          0,
+          state.serverData.channels.textChannels[indexTextChannel]
+            .nonReadedCount - 1,
+        );
 
         if (isTagged) {
           state.serverData.channels.textChannels[
             indexTextChannel
-          ].nonReadedTaggedCount -= 1;
+          ].nonReadedTaggedCount = Math.max(
+            0,
+            state.serverData.channels.textChannels[indexTextChannel]
+              .nonReadedTaggedCount - 1,
+          );
         }
 
         state.serverData.channels.textChannels[
@@ -492,12 +500,22 @@ const testServerSlice = createSlice({
       if (indexNotificationChannel >= 0) {
         state.serverData.channels.notificationChannels[
           indexNotificationChannel
-        ].nonReadedCount -= 1;
+        ].nonReadedCount = Math.max(
+          0,
+          state.serverData.channels.notificationChannels[
+            indexNotificationChannel
+          ].nonReadedCount - 1,
+        );
 
         if (isTagged) {
           state.serverData.channels.notificationChannels[
-            indexTextChannel
-          ].nonReadedTaggedCount -= 1;
+            indexNotificationChannel
+          ].nonReadedTaggedCount = Math.max(
+            0,
+            state.serverData.channels.notificationChannels[
+              indexNotificationChannel
+            ].nonReadedTaggedCount - 1,
+          );
         }
 
         state.serverData.channels.notificationChannels[
@@ -510,10 +528,16 @@ const testServerSlice = createSlice({
       );
 
       if (indexServer >= 0) {
-        state.serversList[indexServer].nonReadedCount -= 1;
+        state.serversList[indexServer].nonReadedCount = Math.max(
+          0,
+          state.serversList[indexServer].nonReadedCount - 1,
+        );
 
         if (isTagged) {
-          state.serversList[indexServer].nonReadedTaggedCount -= 1;
+          state.serversList[indexServer].nonReadedTaggedCount = Math.max(
+            0,
+            state.serversList[indexServer].nonReadedTaggedCount - 1,
+          );
         }
       }
     },
@@ -548,7 +572,7 @@ const testServerSlice = createSlice({
 
         if (isTagged) {
           state.serverData.channels.notificationChannels[
-            indexTextChannel
+            indexNotificationChannel
           ].nonReadedTaggedCount += 1;
         }
       }
@@ -846,7 +870,6 @@ const testServerSlice = createSlice({
       .addCase(getChannelMessages.pending, (state) => {
         state.messagesStatus = LoadingState.PENDING;
         state.numberOfMessages = 0;
-        state.startMessageId = 0;
         state.remainingTopMessagesCount = 0;
         state.allMessagesCount = 0;
         state.remainingBottomMessagesCount = MAX_MESSAGE_NUMBER;
@@ -859,7 +882,8 @@ const testServerSlice = createSlice({
         const {
           messages,
           allMessagesCount,
-          remainingMessagesCount,
+          remainingTopMessagesCount,
+          remainingBottomMessagesCount,
           startMessageId,
         } = payload;
 
@@ -867,7 +891,8 @@ const testServerSlice = createSlice({
         state.hasNewMessage = false;
         state.messagesStatus = LoadingState.FULFILLED;
         state.isLoading = false;
-        state.remainingTopMessagesCount = remainingMessagesCount;
+        state.remainingTopMessagesCount = remainingTopMessagesCount;
+        state.remainingBottomMessagesCount = remainingBottomMessagesCount;
 
         if (messages.length > 0) {
           state.lastTopMessageId = messages[0].id;
@@ -880,16 +905,6 @@ const testServerSlice = createSlice({
         state.lastTopMessageId = messages.length > 0 ? messages[0].id : 0;
         state.lastBottomMessageId =
           messages.length > 0 ? messages[messages.length - 1].id : 0;
-
-        if (messages.length > 0) {
-          const lastMessage = messages[messages.length - 1];
-
-          if (lastMessage?.id === allMessagesCount) {
-            state.remainingBottomMessagesCount = 0;
-          }
-        } else if (allMessagesCount === 0) {
-          state.remainingBottomMessagesCount = 0;
-        }
 
         state.allMessagesCount = allMessagesCount;
         state.startMessageId = startMessageId;
@@ -910,14 +925,48 @@ const testServerSlice = createSlice({
         const { messages, remainingMessagesCount, allMessagesCount } = payload;
         const { down } = meta.arg;
 
+        if (messages.length === 0) {
+          if (down) {
+            state.remainingBottomMessagesCount = 0;
+          } else {
+            state.remainingTopMessagesCount = 0;
+          }
+
+          state.messageIsLoading = LoadingState.FULFILLED;
+          state.allMessagesCount = allMessagesCount;
+          state.error = '';
+
+          return;
+        }
+
         if (!down) {
           const newMessages = messages.slice(0, -1);
+
+          if (newMessages.length === 0) {
+            state.remainingTopMessagesCount = 0;
+            state.messageIsLoading = LoadingState.FULFILLED;
+            state.allMessagesCount = allMessagesCount;
+            state.error = '';
+
+            return;
+          }
+
           state.messages = [...newMessages, ...state.messages];
 
           state.remainingTopMessagesCount = remainingMessagesCount;
           state.lastTopMessageId = messages[0].id;
         } else {
           const newMessages = messages.slice(1);
+
+          if (newMessages.length === 0) {
+            state.remainingBottomMessagesCount = 0;
+            state.messageIsLoading = LoadingState.FULFILLED;
+            state.allMessagesCount = allMessagesCount;
+            state.error = '';
+
+            return;
+          }
+
           state.messages = [...state.messages, ...newMessages];
 
           state.remainingBottomMessagesCount = remainingMessagesCount;

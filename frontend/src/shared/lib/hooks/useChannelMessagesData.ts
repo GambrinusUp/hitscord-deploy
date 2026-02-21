@@ -31,6 +31,9 @@ export const useChannelData = () => {
   const textChannels = useAppSelector(
     (state) => state.testServerStore.serverData.channels.textChannels,
   );
+  const notificationChannels = useAppSelector(
+    (state) => state.testServerStore.serverData.channels.notificationChannels,
+  );
   const currentChannelId = useAppSelector(
     (state) => state.testServerStore.currentChannelId,
   );
@@ -50,7 +53,7 @@ export const useChannelData = () => {
     }
 
     if (currentNotificationChannelId) {
-      const notificationChannel = textChannels.find(
+      const notificationChannel = notificationChannels.find(
         (channel) => channel.channelId === currentNotificationChannelId,
       );
 

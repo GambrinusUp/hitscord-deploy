@@ -9,6 +9,7 @@ import {
   joinRoom,
   type MicAudioState,
 } from '~/context';
+import { useAudioSettings } from '~/shared/lib/hooks';
 import sound from '~/shared/static/zapsplat_multimedia_alert_prompt_mallet_marimba_success_104792.mp3';
 import { MuteStatus } from '~/store/ServerStore';
 
@@ -26,7 +27,8 @@ export const useConnect = () => {
     micSettings,
     setMicAudioState,
   } = useMediaContext();
-  const [play] = useSound(sound, { volume: 0.35 });
+  const { volume } = useAudioSettings();
+  const [play] = useSound(sound, { volume });
 
   const connect = async (
     roomName: string,

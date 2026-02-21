@@ -5,16 +5,26 @@ import {
   MessagesSquare,
   Server,
   Settings,
+  UserPen,
 } from 'lucide-react';
 
 import { setActiveChat } from '~/entities/chat';
 import { useAppDispatch } from '~/hooks';
 
 interface ProfileMenuProps {
-  activeLink: 'friends' | 'settings' | 'chats' | 'serverApplications';
+  activeLink:
+    | 'friends'
+    | 'profileSettings'
+    | 'settings'
+    | 'chats'
+    | 'serverApplications';
   setActiveLink: React.Dispatch<
     React.SetStateAction<
-      'friends' | 'settings' | 'chats' | 'serverApplications'
+      | 'friends'
+      | 'profileSettings'
+      | 'settings'
+      | 'chats'
+      | 'serverApplications'
     >
   >;
 }
@@ -35,7 +45,12 @@ export const ProfileMenu = ({
     dispatch(setActiveChat(null));
   };
 
-  const handleOpenSettings = () => {
+  const handleOpenProfileSettings = () => {
+    setActiveLink('profileSettings');
+    dispatch(setActiveChat(null));
+  };
+
+  const handleOpenApplicationSettings = () => {
     setActiveLink('settings');
     dispatch(setActiveChat(null));
   };
@@ -70,11 +85,18 @@ export const ProfileMenu = ({
         onClick={handleOpenFriends}
       />
       <NavLink
-        label="Настройки"
+        label="Настройки профиля"
+        leftSection={<UserPen size={16} />}
+        rightSection={<ChevronRight size={12} />}
+        active={activeLink === 'profileSettings'}
+        onClick={handleOpenProfileSettings}
+      />
+      <NavLink
+        label="Настройки приложения"
         leftSection={<Settings size={16} />}
         rightSection={<ChevronRight size={12} />}
         active={activeLink === 'settings'}
-        onClick={handleOpenSettings}
+        onClick={handleOpenApplicationSettings}
       />
       <NavLink
         label="Заявки на вступление в сервер"

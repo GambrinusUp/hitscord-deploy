@@ -12,12 +12,15 @@ interface UseScrollToBottomProps {
   messagesStatus: LoadingState;
   dependencies?: unknown[];
   type?: 'chat' | 'channel';
+  hasReplyMessage?: boolean;
+  hasAttachedFiles?: boolean;
 }
 
 export const useScrollToBottom = ({
   messagesStatus,
   dependencies = [],
   type = 'chat',
+  hasAttachedFiles = false,
 }: UseScrollToBottomProps) => {
   const dispatch = useAppDispatch();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -105,11 +108,22 @@ export const useScrollToBottom = ({
     }
   }, [messagesStatus]);
 
+  const calculateButtonOffset = () => {
+    let offset = 10;
+
+    if (hasAttachedFiles) offset += 56;
+
+    /*if (hasReplyMessage) offset += 60;*/
+
+    return offset;
+  };
+
   return {
     scrollRef,
     isAtBottom,
     showButton,
     handleScroll,
     scrollToBottom,
+    buttonOffset: calculateButtonOffset(),
   };
 };

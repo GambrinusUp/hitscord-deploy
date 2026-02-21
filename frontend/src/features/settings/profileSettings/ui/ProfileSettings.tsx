@@ -48,13 +48,17 @@ export const ProfileSettings = ({
 
   return (
     <>
-      <Title order={2}>Информация о профиле</Title>
+      <Title order={2} c="var(--color-white)">
+        Информация о профиле
+      </Title>
       <Text c="dimmed">Основная информация о вашем аккаунте</Text>
       <Group mt="md">
         <Avatar src={iconBase64} alt="User profile icon" size="xl" />
         <Stack>
           <Group>
-            <Title order={4}>{user.name}</Title>
+            <Title order={4} c="var(--color-white)">
+              {user.name}
+            </Title>
             <Badge variant="default">{user.tag}</Badge>
           </Group>
           <Group>

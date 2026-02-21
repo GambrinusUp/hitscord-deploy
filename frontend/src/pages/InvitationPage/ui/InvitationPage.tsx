@@ -49,10 +49,18 @@ export const InvitationPage = () => {
   };
 
   useEffect(() => {
+    const fetchUserProfile = async () => {
+      const result = await dispatch(getUserProfile());
+
+      if (result.meta.requestStatus !== 'fulfilled') {
+        navigate('/main');
+      }
+    };
+
     if (!user.name) {
-      dispatch(getUserProfile());
+      fetchUserProfile();
     }
-  }, [user]);
+  }, [user.name]);
 
   useEffect(() => {
     form.setFieldValue('userName', user.name);

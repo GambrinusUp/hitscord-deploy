@@ -41,12 +41,22 @@ export const Settings = () => {
   });
 
   return (
-    <Stack p="xl" gap="md" w="100%">
+    <Stack
+      p="xl"
+      gap="md"
+      w="100%"
+      style={{ background: 'var(--color-surface-1)' }}
+    >
       <Card
         withBorder
         radius="md"
         w="100%"
-        styles={{ root: { backgroundColor: '#1a1b1e' } }}
+        styles={{
+          root: {
+            backgroundColor: 'var(--color-surface-2)',
+            borderColor: 'var(--border-primary-soft)',
+          },
+        }}
       >
         <ScrollArea.Autosize w="100%" h="100%" offsetScrollbars>
           <ProfileSettings

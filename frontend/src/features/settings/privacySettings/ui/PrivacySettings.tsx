@@ -11,13 +11,15 @@ interface PrivacySettingsProps {
 export const PrivacySettings = ({ isEdit, form }: PrivacySettingsProps) => {
   return (
     <>
-      <Title order={2}>Настройки приватности</Title>
+      <Title order={2} c="var(--color-white)">
+        Настройки приватности
+      </Title>
       <Text c="dimmed">
         Управляйте тем, как другие пользователи могут взаимодействовать с вами
       </Text>
       <Group justify="space-between" mt="lg">
         <Stack gap={0}>
-          <Text>Уведомления</Text>
+          <Text c="var(--color-white)">Уведомления</Text>
           <Text c="dimmed">Получать уведомления о новых сообщениях</Text>
         </Stack>
         <Switch
@@ -31,7 +33,7 @@ export const PrivacySettings = ({ isEdit, form }: PrivacySettingsProps) => {
       <Divider mt="lg" />
       <Group justify="space-between" mt="lg">
         <Stack gap={0}>
-          <Text>Заявки в друзья</Text>
+          <Text c="var(--color-white)">Заявки в друзья</Text>
           <Text c="dimmed">
             Разрешить другим пользователям отправлять заявки в друзья
           </Text>
@@ -49,7 +51,7 @@ export const PrivacySettings = ({ isEdit, form }: PrivacySettingsProps) => {
       <Divider mt="lg" />
       <Group justify="space-between" mt="lg">
         <Stack gap={0}>
-          <Text>Сообщения от незнакомцев</Text>
+          <Text c="var(--color-white)">Сообщения от незнакомцев</Text>
           <Text c="dimmed">
             Разрешить получать сообщения от пользователей, которые не в списке
             друзей

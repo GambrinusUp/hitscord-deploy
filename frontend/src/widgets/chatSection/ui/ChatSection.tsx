@@ -38,7 +38,7 @@ import { UpdateIcon } from '~/features/settings/updateIcon';
 import { useAppDispatch, useAppSelector } from '~/hooks';
 import { formatTagMessage, useMentionSuggestions } from '~/modules/ChatSection';
 import { LoadingState } from '~/shared';
-import { useScrollToBottom } from '~/shared/lib/hooks';
+import { useScrollToBottom, useScrollToMessage } from '~/shared/lib/hooks';
 import { useFileUploadNotification } from '~/shared/lib/hooks/useFileUploadNotification';
 import { useWebSocket } from '~/shared/lib/websocket';
 import { ChannelMessage, ServerMessageType } from '~/store/ServerStore';
@@ -47,7 +47,9 @@ interface ChatSectionProps {
   MessagesList: React.ComponentType<{
     scrollRef: React.RefObject<HTMLDivElement>;
     type: MessageType;
-    replyToMessage: (message: ChatMessage) => void;
+    replyToMessage: (message: ChatMessage | ChannelMessage) => void;
+    onEditMessage?: (message: ChatMessage | ChannelMessage) => void;
+    onScrollToReplyMessage?: (replyMessageId: number) => void;
   }>;
 }
 
@@ -61,20 +63,39 @@ export const ChatSection = ({ MessagesList }: ChatSectionProps) => {
   const { uploadedFiles, loading } = useAppSelector(
     (state) => state.filesStore,
   );
-  const { scrollRef, isAtBottom, showButton, handleScroll, scrollToBottom } =
-    useScrollToBottom({ messagesStatus, dependencies: [messages] });
-  const { getUsername } = useMessageAuthor(MessageType.CHAT);
   const [replyMessage, setReplyMessage] = useState<
     ChatMessage | ChannelMessage | null
   >(null);
+  const {
+    scrollRef,
+    isAtBottom,
+    showButton,
+    handleScroll,
+    scrollToBottom,
+    buttonOffset,
+  } = useScrollToBottom({
+    messagesStatus,
+    dependencies: [messages],
+    hasReplyMessage: !!replyMessage,
+    hasAttachedFiles: uploadedFiles.length > 0,
+  });
+  const { scrollToMessage } = useScrollToMessage({
+    scrollRef,
+    type: MessageType.CHAT,
+  });
+  const { getUsername } = useMessageAuthor(MessageType.CHAT);
 
   const isNotifiable = chat.nonNotifiable;
 
-  const { sendChatMessage } = useWebSocket();
+  const { sendChatMessage, editChatMessage } = useWebSocket();
 
   useFileUploadNotification(loading === LoadingState.PENDING);
 
   const [message, setMessage] = useState('');
+  const [editingMessage, setEditingMessage] = useState<{
+    id: number;
+    originalText: string;
+  } | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -100,12 +121,30 @@ export const ChatSection = ({ MessagesList }: ChatSectionProps) => {
   });
 
   const handleSendMessage = () => {
-    if (message.trim() && chat.chatId && ((message.trim()).length > 0 || uploadedFiles.length > 0)) {
+    const trimmedText = message.trim();
+
+    if (editingMessage && chat.chatId && trimmedText.length > 0) {
+      if (trimmedText === editingMessage.originalText.trim()) return;
+
+      editChatMessage({
+        Token: accessToken,
+        ChannelId: chat.chatId,
+        MessageId: editingMessage.id,
+        Text: formatTagMessage(trimmedText),
+      });
+      setMessage('');
+      setEditingMessage(null);
+      clearSuggestions();
+
+      return;
+    }
+
+    if (chat.chatId && (trimmedText.length > 0 || uploadedFiles.length > 0)) {
       sendChatMessage({
         Token: accessToken,
         ChannelId: chat.chatId,
         Classic: {
-          Text: formatTagMessage(message.trim()),
+          Text: formatTagMessage(trimmedText),
           Files: uploadedFiles.map((file) => file.fileId),
           NestedChannel: false,
         },
@@ -167,7 +206,26 @@ export const ChatSection = ({ MessagesList }: ChatSectionProps) => {
     dispatch(setActiveChat(null));
   };
 
-  const disabled = (message.trim()).length > 0 || uploadedFiles.length > 0;
+  const handleStartEdit = (messageToEdit: ChatMessage | ChannelMessage) => {
+    const textToEdit = messageToEdit.text ?? '';
+    setReplyMessage(null);
+    clearSuggestions();
+    setEditingMessage({ id: messageToEdit.id, originalText: textToEdit });
+    setMessage(textToEdit);
+    dispatch(clearFiles());
+    textareaRef.current?.focus();
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessage(null);
+    setMessage('');
+    clearSuggestions();
+  };
+
+  const disabled = editingMessage
+    ? message.trim().length > 0 &&
+      message.trim() !== editingMessage.originalText.trim()
+    : message.trim().length > 0 || uploadedFiles.length > 0;
 
   return (
     <>
@@ -209,35 +267,48 @@ export const ChatSection = ({ MessagesList }: ChatSectionProps) => {
           </Group>
         </Group>
         <Divider my="md" />
-        <ScrollArea
-          viewportRef={scrollRef}
-          style={{ flex: 1, padding: 10 }}
-          onScrollPositionChange={handleScroll}
+        <Box
+          style={{
+            flex: 1,
+            position: 'relative',
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
         >
-          <MessagesList
-            scrollRef={scrollRef}
-            type={MessageType.CHAT}
-            replyToMessage={(message) => setReplyMessage(message)}
-          />
-        </ScrollArea>
-        {!isAtBottom && showButton && (
-          <Box
-            style={{
-              position: 'absolute',
-              bottom: 60,
-              right: 320,
-              zIndex: 10,
-            }}
+          <ScrollArea
+            viewportRef={scrollRef}
+            style={{ flex: 1, padding: 10 }}
+            onScrollPositionChange={handleScroll}
           >
-            <ActionIcon
-              size="lg"
-              variant="filled"
-              onClick={() => scrollToBottom()}
+            <MessagesList
+              scrollRef={scrollRef}
+              type={MessageType.CHAT}
+              replyToMessage={(message) => setReplyMessage(message)}
+              onEditMessage={handleStartEdit}
+              onScrollToReplyMessage={scrollToMessage}
+            />
+          </ScrollArea>
+          {!isAtBottom && showButton && (
+            <Box
+              style={{
+                position: 'absolute',
+                bottom: buttonOffset,
+                right: 10,
+                zIndex: 10,
+              }}
             >
-              <ArrowDown size={20} />
-            </ActionIcon>
-          </Box>
-        )}
+              <ActionIcon
+                size="lg"
+                variant="filled"
+                onClick={() => scrollToBottom()}
+              >
+                <ArrowDown size={20} />
+              </ActionIcon>
+            </Box>
+          )}
+        </Box>
         <Box pos="relative">
           <AttachedFilesList />
           {replyMessage && (
@@ -249,6 +320,16 @@ export const ChatSection = ({ MessagesList }: ChatSectionProps) => {
                 <Text lineClamp={2}>
                   {replyMessage.text || replyMessage.title}
                 </Text>
+              </Notification>
+            </Box>
+          )}
+          {editingMessage && (
+            <Box p={6}>
+              <Notification
+                title="Редактирование сообщения"
+                onClose={handleCancelEdit}
+              >
+                <Text lineClamp={2}>{editingMessage.originalText}</Text>
               </Notification>
             </Box>
           )}
@@ -303,12 +384,18 @@ export const ChatSection = ({ MessagesList }: ChatSectionProps) => {
               component="label"
               size="xl"
               variant="transparent"
-              disabled={loading === LoadingState.PENDING}
+              disabled={loading === LoadingState.PENDING || !!editingMessage}
             >
               <Paperclip size={20} />
-              <input type="file" hidden multiple onChange={handleFileChange} />
+              <input
+                type="file"
+                hidden
+                multiple
+                disabled={!!editingMessage}
+                onChange={handleFileChange}
+              />
             </ActionIcon>
-            <CreatePoll type={MessageType.CHAT} />
+            <CreatePoll type={MessageType.CHAT} disabled={!!editingMessage} />
             <Textarea
               w="100%"
               ref={textareaRef}

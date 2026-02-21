@@ -15,7 +15,11 @@ import {
 
 import { FileResponse } from '~/entities/files';
 import { ERROR_MESSAGES } from '~/shared/constants';
-import { RootState } from '~/store/store';
+
+interface InitialMessagesPayload extends GetMessage {
+  remainingTopMessagesCount: number;
+  remainingBottomMessagesCount: number;
+}
 
 export const getUserServers = createAsyncThunk<
   ServerItem[],
@@ -187,20 +191,17 @@ export const unsubscribeFromServer = createAsyncThunk<
 );
 
 export const getChannelMessages = createAsyncThunk<
-  GetMessage,
+  InitialMessagesPayload,
   {
     channelId: string;
     number: number;
     fromMessageId: number;
     down: boolean;
   },
-  { rejectValue: string; state: RootState }
+  { rejectValue: string }
 >(
   'testServerSlice/getChannelMessages',
-  async (
-    { channelId, number, fromMessageId, down },
-    { rejectWithValue, getState },
-  ) => {
+  async ({ channelId, number, fromMessageId, down }, { rejectWithValue }) => {
     try {
       const response = await ChannelsAPI.getChannelsMessages(
         channelId,
@@ -209,39 +210,73 @@ export const getChannelMessages = createAsyncThunk<
         down,
       );
 
-      if (response.messages.length > 0) {
-        return response;
-      }
+      let messages = response.messages;
+      let remainingTopMessagesCount = down
+        ? 0
+        : response.remainingMessagesCount;
+      let remainingBottomMessagesCount = down
+        ? response.remainingMessagesCount
+        : 0;
 
-      const state = getState();
-      const server = state.testServerStore;
-
-      const channel = server.serverData.channels.textChannels.find(
-        (c) => c.channelId === channelId,
-      );
-
-      const hasUnread =
-        (channel?.nonReadedCount ?? 0) > 0 ||
-        (channel?.nonReadedTaggedCount ?? 0) > 0;
-
-      const shouldLoadDown =
+      const shouldTryLoadDown =
         !down &&
         fromMessageId !== 0 &&
-        response.messages.length === 0 &&
-        hasUnread;
+        response.allMessagesCount > 0 &&
+        messages.length < number;
 
-      if (shouldLoadDown) {
+      if (shouldTryLoadDown) {
+        const anchorMessageId =
+          messages.length > 0 ? messages[messages.length - 1].id : fromMessageId;
+        const numberToLoad =
+          number - messages.length + (messages.length > 0 ? 1 : 0);
+
         const fallbackResponse = await ChannelsAPI.getChannelsMessages(
           channelId,
-          number,
-          fromMessageId,
+          numberToLoad,
+          anchorMessageId,
           true,
         );
 
-        return fallbackResponse;
+        const mergedById = new Map<number, (typeof messages)[number]>();
+        messages.forEach((message) => mergedById.set(message.id, message));
+        fallbackResponse.messages.forEach((message) =>
+          mergedById.set(message.id, message),
+        );
+
+        messages = [...mergedById.values()].sort((a, b) => a.id - b.id);
+        remainingBottomMessagesCount = fallbackResponse.remainingMessagesCount;
       }
 
-      return response;
+      const loadedMessagesCount = messages.length;
+
+      if (!down) {
+        remainingBottomMessagesCount =
+          remainingBottomMessagesCount > 0
+            ? remainingBottomMessagesCount
+            : Math.max(
+                response.allMessagesCount -
+                  loadedMessagesCount -
+                  remainingTopMessagesCount,
+                0,
+              );
+      } else {
+        remainingTopMessagesCount = Math.max(
+          response.allMessagesCount -
+            loadedMessagesCount -
+            remainingBottomMessagesCount,
+          0,
+        );
+      }
+
+      return {
+        ...response,
+        messages,
+        numberOfMessages: messages.length,
+        startMessageId:
+          messages.length > 0 ? messages[0].id : response.startMessageId,
+        remainingTopMessagesCount,
+        remainingBottomMessagesCount,
+      };
     } catch (e) {
       if (e instanceof AxiosError) {
         return rejectWithValue(e.response?.data?.message || 'Произошла ошибка');
@@ -681,7 +716,7 @@ export const changeSubChannelSettings = createAsyncThunk<
 
 export const createInvitation = createAsyncThunk<
   { invitationString: string },
-  { serverId: string; expiredAt?: string },
+  { serverId: string; expiredAt: string },
   { rejectValue: string }
 >(
   'testServerSlice/createInvitation',

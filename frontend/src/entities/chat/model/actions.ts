@@ -12,7 +12,11 @@ import {
 import { ChatsAPI } from '~/entities/chat/api';
 import { FileResponse } from '~/entities/files';
 import { ERROR_MESSAGES } from '~/shared/constants';
-import { RootState } from '~/store/store';
+
+interface InitialMessagesPayload extends GetChatMessages {
+  remainingTopMessagesCount: number;
+  remainingBottomMessagesCount: number;
+}
 
 export const createChat = createAsyncThunk<
   Chat,
@@ -88,15 +92,12 @@ export const getChatInfo = createAsyncThunk<
 });
 
 export const getChatMessages = createAsyncThunk<
-  GetChatMessages,
+  InitialMessagesPayload,
   GetMessagesParams,
-  { rejectValue: string; state: RootState }
+  { rejectValue: string }
 >(
   'chatsSlice/getChatMessages',
-  async (
-    { chatId, number, fromMessageId, down },
-    { rejectWithValue, getState },
-  ) => {
+  async ({ chatId, number, fromMessageId, down }, { rejectWithValue }) => {
     try {
       const response = await ChatsAPI.getChatMessages(
         chatId,
@@ -105,37 +106,73 @@ export const getChatMessages = createAsyncThunk<
         down,
       );
 
-      if (response.messages.length > 0) {
-        return response;
-      }
+      let messages = response.messages;
+      let remainingTopMessagesCount = down
+        ? 0
+        : response.remainingMessagesCount;
+      let remainingBottomMessagesCount = down
+        ? response.remainingMessagesCount
+        : 0;
 
-      const state = getState();
-      const chatStore = state.chatsStore;
-
-      const chat = chatStore.chatsList?.find((c) => c.chatId === chatId);
-
-      const hasUnread =
-        (chat?.nonReadedCount ?? 0) > 0 ||
-        (chat?.nonReadedTaggedCount ?? 0) > 0;
-
-      const shouldLoadDown =
+      const shouldTryLoadDown =
         !down &&
         fromMessageId !== 0 &&
-        response.messages.length === 0 &&
-        hasUnread;
+        response.allMessagesCount > 0 &&
+        messages.length < number;
 
-      if (shouldLoadDown) {
+      if (shouldTryLoadDown) {
+        const anchorMessageId =
+          messages.length > 0 ? messages[messages.length - 1].id : fromMessageId;
+        const numberToLoad =
+          number - messages.length + (messages.length > 0 ? 1 : 0);
+
         const fallbackResponse = await ChatsAPI.getChatMessages(
           chatId,
-          number,
-          fromMessageId,
+          numberToLoad,
+          anchorMessageId,
           true,
         );
 
-        return fallbackResponse;
+        const mergedById = new Map<number, (typeof messages)[number]>();
+        messages.forEach((message) => mergedById.set(message.id, message));
+        fallbackResponse.messages.forEach((message) =>
+          mergedById.set(message.id, message),
+        );
+
+        messages = [...mergedById.values()].sort((a, b) => a.id - b.id);
+        remainingBottomMessagesCount = fallbackResponse.remainingMessagesCount;
       }
 
-      return response;
+      const loadedMessagesCount = messages.length;
+
+      if (!down) {
+        remainingBottomMessagesCount =
+          remainingBottomMessagesCount > 0
+            ? remainingBottomMessagesCount
+            : Math.max(
+                response.allMessagesCount -
+                  loadedMessagesCount -
+                  remainingTopMessagesCount,
+                0,
+              );
+      } else {
+        remainingTopMessagesCount = Math.max(
+          response.allMessagesCount -
+            loadedMessagesCount -
+            remainingBottomMessagesCount,
+          0,
+        );
+      }
+
+      return {
+        ...response,
+        messages,
+        numberOfMessages: messages.length,
+        startMessageId:
+          messages.length > 0 ? messages[0].id : response.startMessageId,
+        remainingTopMessagesCount,
+        remainingBottomMessagesCount,
+      };
     } catch (e) {
       if (e instanceof AxiosError) {
         return rejectWithValue(e.response?.data?.message || 'Произошла ошибка');

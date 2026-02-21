@@ -24,7 +24,7 @@ export const ProfilePage = () => {
   const dispatch = useAppDispatch();
   const { activeChat } = useAppSelector((state) => state.chatsStore);
   const [activeLink, setActiveLink] = useState<
-    'friends' | 'settings' | 'chats' | 'serverApplications'
+    'friends' | 'profileSettings' | 'settings' | 'chats' | 'serverApplications'
   >('chats');
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export const ProfilePage = () => {
         UserApplications={UserApplications}
       />
       {activeChat && <ChatUsers />}
-      {!activeChat && activeLink !== 'settings' && <Profile />}
+      {!activeChat && activeLink !== 'profileSettings' && <Profile />}
     </>
   );
 };
