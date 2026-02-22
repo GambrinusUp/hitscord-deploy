@@ -56,6 +56,8 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
     const audioContext = initAudioContext();
     const { audio: sharedAudio, stream: sharedStream } = initSharedAudio();
 
+    let hasNewTracks = false;
+
     consumers.forEach(({ producerId, track, kind, appData }) => {
       const source = appData?.source;
 
@@ -67,13 +69,12 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
         const userId = producerToUserMap.current.get(producerId);
         const savedVolume = userId ? getStoredVolume(userId) : 1;
 
-        sharedStream!.addTrack(track);
+        const existingTracks = sharedStream!.getTracks();
 
-        sharedAudio.srcObject = sharedStream;
-
-        sharedAudio.play().catch((err) => {
-          console.warn('Failed to autoplay audio:', err);
-        });
+        if (!existingTracks.includes(track)) {
+          sharedStream!.addTrack(track);
+          hasNewTracks = true;
+        }
 
         const singleTrackStream = new MediaStream([track]);
 
@@ -102,6 +103,21 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
         setTimeout(setupAudioNode, 0);
       }
     });
+
+    if (hasNewTracks && sharedAudio.paused) {
+      sharedAudio.play().catch((err) => {
+        if (err.name === 'AbortError') {
+          console.warn('Audio playback was interrupted, retrying...');
+          setTimeout(() => {
+            sharedAudio.play().catch((retryErr) => {
+              console.warn('Failed to autoplay audio after retry:', retryErr);
+            });
+          }, 100);
+        } else {
+          console.warn('Failed to autoplay audio:', err);
+        }
+      });
+    }
 
     const activeProducers = consumers.map((c) => c.producerId);
 
