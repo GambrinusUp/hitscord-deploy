@@ -4,7 +4,6 @@ import React, { useEffect } from 'react';
 
 import { CollapseButton } from './components/CollapseButton';
 import { UserItem } from './components/UserItem';
-import { useActiveUsers } from './VoiceChannels.hooks';
 
 import { socket } from '~/api/socket';
 import { useMediaContext } from '~/context';
@@ -18,6 +17,7 @@ import {
   useConnect,
   useDisconnect,
 } from '~/hooks';
+import { useSpeaking } from '~/shared/lib/hooks';
 import { getStoredVolume } from '~/shared/lib/utils/getStoredVolume';
 import { setUserStreamView, toggleUserStreamView } from '~/store/AppStore';
 import {
@@ -39,13 +39,16 @@ export const VoiceChannels = () => {
   const dispatch = useAppDispatch();
   const [opened, { toggle }] = useDisclosure(true);
 
-  const activeUsers = useActiveUsers();
-  const { setVolume, registerProducerUser, userVolumes } = useAudioContext();
+  const { setVolume, registerProducerUser, userVolumes, resumeAudio } =
+    useAudioContext();
+  const { calculateIsSpeaking } = useSpeaking();
   const rooms = getUserGroups(users);
   const canWorkChannels = serverData.permissions.canWorkChannels;
   const canIgnoreMaxCount = serverData.permissions.canIgnoreMaxCount;
 
   const handleConnect = async (channelId: string, maxCount: number) => {
+    await resumeAudio();
+
     const currentCount = rooms
       .filter((room) => room.roomName === channelId)
       .flatMap((room) => Object.values(room.users)).length;
@@ -133,15 +136,6 @@ export const VoiceChannels = () => {
     return volume * 100;
   };
 
-  const calculateIsSpeaking = (producerIds: string[], channelId: string) => {
-    const isSpeaking =
-      producerIds.some((id) =>
-        activeUsers.some((user) => user.producerId === id),
-      ) && channelId === currentVoiceChannelId;
-
-    return isSpeaking;
-  };
-
   const handleOpenStream = (socketId: string) => {
     setSelectedUserId(socketId);
     dispatch(setUserStreamView(true));
@@ -199,6 +193,31 @@ export const VoiceChannels = () => {
     };
   }, [disconnect, dispatch]);
 
+  useEffect(() => {
+    const currentRoom = rooms.find(
+      (room) => room.roomName === currentVoiceChannelId,
+    );
+
+    if (!currentRoom) return;
+
+    Object.values(currentRoom.users).forEach(({ producers, userId }) => {
+      if (userId) {
+        producers.forEach((producer) => {
+          const isAudio = consumers.some(
+            (c) =>
+              c.producerId === producer.producerId &&
+              c.kind === 'audio' &&
+              c.appData?.source !== 'screen-audio',
+          );
+
+          if (isAudio) {
+            registerProducerUser(producer.producerId, userId);
+          }
+        });
+      }
+    });
+  }, [currentVoiceChannelId, rooms, consumers, registerProducerUser]);
+
   return (
     <Stack align="flex-start" gap="xs">
       <CollapseButton
@@ -240,24 +259,6 @@ export const VoiceChannels = () => {
                           const producerIds = producers.map(
                             (producer) => producer.producerId,
                           );
-
-                          if (userId) {
-                            producers.forEach((producer) => {
-                              const isAudio = consumers.some(
-                                (c) =>
-                                  c.producerId === producer.producerId &&
-                                  c.kind === 'audio' &&
-                                  c.appData?.source !== 'screen-audio',
-                              );
-
-                              if (isAudio) {
-                                registerProducerUser(
-                                  producer.producerId,
-                                  userId,
-                                );
-                              }
-                            });
-                          }
 
                           const isSpeaking = calculateIsSpeaking(
                             producerIds,
