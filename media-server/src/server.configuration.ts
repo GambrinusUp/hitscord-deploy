@@ -4,8 +4,8 @@ export const mediaCodecs: RtpCodecCapability[] = [
   {
     kind: "audio",
     mimeType: "audio/opus",
-    clockRate: 48000,
-    channels: 2,
+    clockRate: 16000,
+    channels: 1,
   },
   {
     kind: "video",
