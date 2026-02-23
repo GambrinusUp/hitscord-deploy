@@ -27,7 +27,6 @@ export const EditRolesSettings = ({
   channelType,
   loading,
   setLoading,
-  onClose,
 }: EditRolesSettingsProps) => {
   const dispatch = useAppDispatch();
   const { serverData } = useAppSelector((state) => state.testServerStore);
@@ -60,7 +59,6 @@ export const EditRolesSettings = ({
       if (result.meta.requestStatus === 'fulfilled') {
         setLoading(false);
         showSuccess('Настройки успешно изменены');
-        onClose();
       }
     }
 
@@ -84,7 +82,6 @@ export const EditRolesSettings = ({
       if (result.meta.requestStatus === 'fulfilled') {
         setLoading(false);
         showSuccess('Настройки успешно изменены');
-        onClose();
       }
     }
 
@@ -108,7 +105,6 @@ export const EditRolesSettings = ({
       if (result.meta.requestStatus === 'fulfilled') {
         setLoading(false);
         showSuccess('Настройки успешно изменены');
-        onClose();
       }
     }
 
