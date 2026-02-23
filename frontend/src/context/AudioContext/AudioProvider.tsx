@@ -1,166 +1,256 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { AudioContext as AudioContextType } from './AudioContext';
+import { AudioContext as CustomAudioContext } from './AudioContext';
 
 import { useMediaContext } from '~/context/MediaContext';
 import { getStoredVolume } from '~/shared/lib/utils/getStoredVolume';
 import { saveVolumeToStorage } from '~/shared/lib/utils/saveVolumeToStorage';
 
-interface AudioNode {
-  source: MediaStreamAudioSourceNode;
-  gainNode: GainNode;
-  mediaStream: MediaStream;
-}
-
 export const AudioProvider = (props: React.PropsWithChildren) => {
   const { consumers } = useMediaContext();
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const audioNodesRef = useRef<Map<string, AudioNode>>(new Map());
-  const sharedAudioRef = useRef<HTMLAudioElement | null>(null);
-  const sharedStreamRef = useRef<MediaStream | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const nodesRef = useRef(
+    new Map<string, { source: MediaStreamAudioSourceNode; gain: GainNode }>(),
+  );
   const [userVolumes, setUserVolumes] = useState<Record<string, number>>({});
   const producerToUserMap = useRef(new Map<string, string>());
+  const [audioState, setAudioState] = useState<AudioContextState>('suspended');
 
-  const initAudioContext = () => {
-    if (!audioContextRef.current) {
-      const AudioContextConstructor =
+  const allRemoteStreamRef = useRef(new MediaStream());
+  const mutedAudioRef = useRef<HTMLAudioElement | null>(null);
+  const mainAudioRef = useRef<HTMLAudioElement | null>(null);
+  const destRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const pendingTrackRemovals = useRef<Set<string>>(new Set());
+  const trackAdditionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const resumeAudio = async () => {
+    if (!audioCtxRef.current) {
+      const audioContextCtor =
         window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext })
-          .webkitAudioContext;
-      audioContextRef.current = new AudioContextConstructor();
+        (
+          window as Window &
+            typeof globalThis & { webkitAudioContext?: typeof AudioContext }
+        ).webkitAudioContext;
+
+      if (!audioContextCtor) {
+        console.error('Web Audio API is not supported in this browser');
+
+        return;
+      }
+
+      audioCtxRef.current = new audioContextCtor();
+
+      console.log(
+        'AudioContext created with sampleRate:',
+        audioCtxRef.current.sampleRate,
+      );
+
+      audioCtxRef.current.addEventListener('statechange', () => {
+        setAudioState(audioCtxRef.current?.state || 'closed');
+        console.log(
+          'AudioContext state changed to:',
+          audioCtxRef.current?.state,
+        );
+      });
+      destRef.current = audioCtxRef.current.createMediaStreamDestination();
     }
 
-    return audioContextRef.current;
-  };
-
-  const initSharedAudio = () => {
-    if (!sharedAudioRef.current) {
-      const audio = document.createElement('audio');
-      const stream = new MediaStream();
-
-      audio.srcObject = stream;
-      audio.autoplay = true;
-      audio.muted = true;
-
-      sharedAudioRef.current = audio;
-      sharedStreamRef.current = stream;
+    if (!mutedAudioRef.current) {
+      mutedAudioRef.current = document.createElement('audio');
+      mutedAudioRef.current.muted = true;
+      mutedAudioRef.current.autoplay = true;
+      mutedAudioRef.current.setAttribute('playsinline', 'true');
+      document.body.appendChild(mutedAudioRef.current);
     }
 
-    return {
-      audio: sharedAudioRef.current,
-      stream: sharedStreamRef.current,
-    };
+    if (!mainAudioRef.current) {
+      mainAudioRef.current = document.createElement('audio');
+      mainAudioRef.current.autoplay = true;
+      mainAudioRef.current.setAttribute('playsinline', 'true');
+      mainAudioRef.current.srcObject = destRef.current?.stream || null;
+      mainAudioRef.current.volume = 1;
+      document.body.appendChild(mainAudioRef.current);
+    }
+
+    if (audioCtxRef.current.state === 'suspended') {
+      try {
+        await audioCtxRef.current.resume();
+        console.log(
+          'AudioContext resumed successfully. Current state:',
+          audioCtxRef.current.state,
+        );
+
+        if (mainAudioRef.current) {
+          mainAudioRef.current
+            .play()
+            .catch((e) => console.error('Main audio play error:', e));
+        }
+      } catch (error) {
+        console.error('Failed to resume AudioContext:', error);
+      }
+    }
   };
 
   useEffect(() => {
-    const audioContext = initAudioContext();
-    const { audio: sharedAudio, stream: sharedStream } = initSharedAudio();
+    if (consumers.length > 0 && !audioCtxRef.current) {
+      resumeAudio();
+    }
+  }, [consumers.length]);
 
-    let hasNewTracks = false;
+  useEffect(() => {
+    if (
+      !audioCtxRef.current ||
+      audioCtxRef.current.state !== 'running' ||
+      !destRef.current
+    ) {
+      console.log(
+        'Skipping audio setup: AudioContext not running or dest not ready',
+      );
+
+      return;
+    }
+
+    const audioCtx = audioCtxRef.current;
+    const destination = destRef.current;
+    const allRemoteStream = allRemoteStreamRef.current;
+    let needsSrcObjectReset = false;
 
     consumers.forEach(({ producerId, track, kind, appData }) => {
-      const source = appData?.source;
-
       if (
-        kind === 'audio' &&
-        source !== 'screen-audio' &&
-        !audioNodesRef.current.has(producerId)
+        nodesRef.current.has(producerId) ||
+        pendingTrackRemovals.current.has(producerId)
       ) {
-        const userId = producerToUserMap.current.get(producerId);
-        const savedVolume = userId ? getStoredVolume(userId) : 1;
+        return;
+      }
 
-        const existingTracks = sharedStream!.getTracks();
+      const sourceType = appData?.source;
 
-        if (!existingTracks.includes(track)) {
-          sharedStream!.addTrack(track);
-          hasNewTracks = true;
+      if (kind === 'audio' && sourceType !== 'screen-audio') {
+        console.log(
+          'Processing audio track for producer:',
+          producerId,
+          'Track readyState:',
+          track.readyState,
+          'AudioContext sampleRate:',
+          audioCtx.sampleRate,
+        );
+
+        track.contentHint = 'speech';
+
+        allRemoteStream.addTrack(track);
+        needsSrcObjectReset = true;
+
+        const mediaStream = new MediaStream([track]);
+
+        let sourceNode: MediaStreamAudioSourceNode;
+        try {
+          sourceNode = audioCtx.createMediaStreamSource(mediaStream);
+        } catch (e) {
+          console.error('Failed to create MediaStreamAudioSourceNode:', e);
+          allRemoteStream.removeTrack(track);
+          needsSrcObjectReset = true;
+
+          return;
         }
 
-        const singleTrackStream = new MediaStream([track]);
+        const gainNode = audioCtx.createGain();
+        const userId = producerToUserMap.current.get(producerId);
+        const volumeKey = userId ?? producerId;
+        gainNode.gain.value =
+          userVolumes[volumeKey] ?? getStoredVolume(volumeKey) ?? 1;
 
-        const setupAudioNode = () => {
-          if (audioNodesRef.current.has(producerId)) {
-            return;
-          }
+        sourceNode.connect(gainNode);
+        gainNode.connect(destination);
 
-          const audioSource =
-            audioContext.createMediaStreamSource(singleTrackStream);
-          const gainNode = audioContext.createGain();
+        nodesRef.current.set(producerId, {
+          source: sourceNode,
+          gain: gainNode,
+        });
 
-          gainNode.gain.value =
-            userVolumes[userId || producerId] ?? savedVolume;
-
-          audioSource.connect(gainNode);
-          gainNode.connect(audioContext.destination);
-
-          audioNodesRef.current.set(producerId, {
-            source: audioSource,
-            gainNode,
-            mediaStream: singleTrackStream,
-          });
-        };
-
-        setTimeout(setupAudioNode, 0);
+        console.log('Audio node added for producer:', producerId);
       }
     });
 
-    if (hasNewTracks && sharedAudio.paused) {
-      sharedAudio.play().catch((err) => {
-        if (err.name === 'AbortError') {
-          console.warn('Audio playback was interrupted, retrying...');
-          setTimeout(() => {
-            sharedAudio.play().catch((retryErr) => {
-              console.warn('Failed to autoplay audio after retry:', retryErr);
-            });
-          }, 100);
-        } else {
-          console.warn('Failed to autoplay audio:', err);
+    const activeProducers = new Set(consumers.map((c) => c.producerId));
+    const producersToRemove: string[] = [];
+
+    nodesRef.current.forEach((_, producerId) => {
+      if (
+        !activeProducers.has(producerId) &&
+        !pendingTrackRemovals.current.has(producerId)
+      ) {
+        producersToRemove.push(producerId);
+      }
+    });
+
+    if (producersToRemove.length > 0) {
+      producersToRemove.forEach((producerId) => {
+        pendingTrackRemovals.current.add(producerId);
+
+        const nodes = nodesRef.current.get(producerId);
+        const producer = consumers.find((c) => c.producerId === producerId);
+
+        if (nodes && producer) {
+          const fadeOutDuration = 0.2;
+          const currentTime = audioCtx.currentTime;
+          nodes.gain.gain.setValueAtTime(nodes.gain.gain.value, currentTime);
+          nodes.gain.gain.linearRampToValueAtTime(
+            0,
+            currentTime + fadeOutDuration,
+          );
+
+          setTimeout(
+            () => {
+              nodes.gain.disconnect();
+              nodes.source.disconnect();
+              nodesRef.current.delete(producerId);
+              pendingTrackRemovals.current.delete(producerId);
+
+              allRemoteStream.removeTrack(producer.track);
+
+              if (mutedAudioRef.current) {
+                mutedAudioRef.current.srcObject = new MediaStream(
+                  allRemoteStream.getTracks(),
+                );
+              }
+
+              console.log('Audio node removed for producer:', producerId);
+            },
+            fadeOutDuration * 1000 + 10,
+          );
         }
       });
     }
 
-    const activeProducers = consumers.map((c) => c.producerId);
+    if (needsSrcObjectReset && mutedAudioRef.current) {
+      mutedAudioRef.current.srcObject = allRemoteStream;
 
-    audioNodesRef.current.forEach((_, producerId) => {
-      if (!activeProducers.includes(producerId)) {
-        const audioNode = audioNodesRef.current.get(producerId);
-
-        if (audioNode) {
-          audioNode.source.disconnect();
-          audioNode.gainNode.disconnect();
-        }
-
-        audioNodesRef.current.delete(producerId);
+      if (mainAudioRef.current) {
+        mainAudioRef.current
+          .play()
+          .catch((e) => console.error('Main audio play error:', e));
       }
-    });
-
-    return () => {
-      audioNodesRef.current.forEach((audioNode) => {
-        audioNode.source.disconnect();
-        audioNode.gainNode.disconnect();
-      });
-    };
-  }, [consumers]);
+    }
+  }, [consumers, audioState, userVolumes]);
 
   useEffect(() => {
-    audioNodesRef.current.forEach((audioNode, producerId) => {
+    nodesRef.current.forEach(({ gain }, producerId) => {
       const userId = producerToUserMap.current.get(producerId);
+      const volumeKey = userId ?? producerId;
 
-      if (userId && userVolumes[userId] !== undefined) {
-        audioNode.gainNode.gain.value = userVolumes[userId];
+      if (userVolumes[volumeKey] !== undefined) {
+        gain.gain.value = userVolumes[volumeKey];
       }
     });
   }, [userVolumes]);
 
   const setVolume = (userId: string, volume: number) => {
-    const normalizedVolume = volume / 100;
-    setUserVolumes((prev) => ({ ...prev, [userId]: normalizedVolume }));
-    saveVolumeToStorage(userId, normalizedVolume);
+    setUserVolumes((prev) => ({ ...prev, [userId]: volume / 100 }));
+    saveVolumeToStorage(userId, volume / 100);
   };
 
   const registerProducerUser = (producerId: string, userId: string) => {
     producerToUserMap.current.set(producerId, userId);
-
     setUserVolumes((prev) => {
       if (prev[userId] === undefined) {
         const storedVolume = getStoredVolume(userId);
@@ -172,20 +262,43 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
     });
   };
 
-  const resumeAudio = async () => {
-    const audioContext = initAudioContext();
-
-    if (audioContext.state === 'suspended') {
-      try {
-        await (audioContext as AudioContext).resume();
-      } catch (err) {
-        console.error('Failed to resume audio context:', err);
+  useEffect(() => {
+    return () => {
+      if (trackAdditionTimeoutRef.current) {
+        clearTimeout(trackAdditionTimeoutRef.current);
       }
-    }
-  };
+
+      if (audioCtxRef.current) {
+        audioCtxRef.current.close();
+        audioCtxRef.current = null;
+      }
+      nodesRef.current.forEach(({ gain, source }) => {
+        gain.disconnect();
+        source.disconnect();
+      });
+      nodesRef.current.clear();
+      pendingTrackRemovals.current.clear();
+
+      if (mutedAudioRef.current) {
+        mutedAudioRef.current.pause();
+        mutedAudioRef.current.srcObject = null;
+        mutedAudioRef.current.remove();
+        mutedAudioRef.current = null;
+      }
+
+      if (mainAudioRef.current) {
+        mainAudioRef.current.pause();
+        mainAudioRef.current.srcObject = null;
+        mainAudioRef.current.remove();
+        mainAudioRef.current = null;
+      }
+      allRemoteStreamRef.current = new MediaStream();
+      destRef.current = null;
+    };
+  }, []);
 
   return (
-    <AudioContextType.Provider
+    <CustomAudioContext.Provider
       value={{
         setVolume,
         registerProducerUser,
@@ -194,6 +307,6 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
       }}
     >
       {props.children}
-    </AudioContextType.Provider>
+    </CustomAudioContext.Provider>
   );
 };
