@@ -386,8 +386,6 @@ const testServerSlice = createSlice({
         (channel) => channel.channelId === channelId,
       );
 
-      console.log(userId, muteStatus);
-
       if (voiceChannel) {
         if (!voiceChannel.users.some((user) => user.userId === userId)) {
           voiceChannel.users.push({
@@ -722,7 +720,6 @@ const testServerSlice = createSlice({
         );
 
         if (userIndex >= 0) {
-          console.log(action.payload);
           voiceChannel.users[userIndex].muteStatus = action.payload.muteStatus;
 
           /*if (action.payload.muteStatus === MuteStatus.NotMuted) {

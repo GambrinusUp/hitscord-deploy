@@ -142,7 +142,7 @@ export const VoiceChannels = () => {
   };
 
   const handleMuteUser = (userId: string, isMuted: boolean | undefined) => {
-    console.log(isMuted);
+    //console.log(isMuted);
 
     if (isMuted) {
       socket.emit(

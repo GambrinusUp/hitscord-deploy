@@ -40,17 +40,8 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
 
       audioCtxRef.current = new audioContextCtor();
 
-      console.log(
-        'AudioContext created with sampleRate:',
-        audioCtxRef.current.sampleRate,
-      );
-
       audioCtxRef.current.addEventListener('statechange', () => {
         setAudioState(audioCtxRef.current?.state || 'closed');
-        console.log(
-          'AudioContext state changed to:',
-          audioCtxRef.current?.state,
-        );
       });
       destRef.current = audioCtxRef.current.createMediaStreamDestination();
     }
@@ -75,10 +66,6 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
     if (audioCtxRef.current.state === 'suspended') {
       try {
         await audioCtxRef.current.resume();
-        console.log(
-          'AudioContext resumed successfully. Current state:',
-          audioCtxRef.current.state,
-        );
 
         if (mainAudioRef.current) {
           mainAudioRef.current
@@ -103,10 +90,6 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
       audioCtxRef.current.state !== 'running' ||
       !destRef.current
     ) {
-      console.log(
-        'Skipping audio setup: AudioContext not running or dest not ready',
-      );
-
       return;
     }
 
@@ -126,15 +109,6 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
       const sourceType = appData?.source;
 
       if (kind === 'audio' && sourceType !== 'screen-audio') {
-        console.log(
-          'Processing audio track for producer:',
-          producerId,
-          'Track readyState:',
-          track.readyState,
-          'AudioContext sampleRate:',
-          audioCtx.sampleRate,
-        );
-
         track.contentHint = 'speech';
 
         allRemoteStream.addTrack(track);
@@ -166,8 +140,6 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
           source: sourceNode,
           gain: gainNode,
         });
-
-        console.log('Audio node added for producer:', producerId);
       }
     });
 
@@ -213,8 +185,6 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
                   allRemoteStream.getTracks(),
                 );
               }
-
-              console.log('Audio node removed for producer:', producerId);
             },
             fadeOutDuration * 1000 + 10,
           );

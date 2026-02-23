@@ -163,7 +163,7 @@ export const WebSocketProvider = (props: React.PropsWithChildren) => {
         const currentChatIdValue = currentChatIdRef.current;
         const userIdValue = userIdRef.current;
 
-        console.log(data);
+        //console.log(data);
 
         if (data.MessageType === 'New user on server') {
           const formattedUser = formatUser(data.Payload);
