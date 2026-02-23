@@ -51,6 +51,8 @@ export const getLocalAudioStream = async (
   const micSettings = settings ?? getDefaultMicSettings();
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: {
+      channelCount: 1,
+      sampleRate: 16000,
       noiseSuppression: micSettings.noiseSuppression,
       echoCancellation: micSettings.echoCancellation,
       autoGainControl: micSettings.autoGainControl,
