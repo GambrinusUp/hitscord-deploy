@@ -225,8 +225,15 @@ connections.on("connection", async (socket) => {
     callback(producerList);
   });
 
-  socket.on("transport-connect", ({ dtlsParameters }) => {
-    store.getTransport(socket.id).connect({ dtlsParameters });
+  socket.on("transport-connect", async ({ dtlsParameters }) => {
+    try {
+      const transport = store.getTransport(socket.id);
+      if (transport && transport.dtlsState === "new") {
+        await transport.connect({ dtlsParameters });
+      }
+    } catch (error) {
+      console.error("Error in transport-connect:", error);
+    }
   });
 
   socket.on(
