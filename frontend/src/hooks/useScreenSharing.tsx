@@ -17,7 +17,11 @@ export const useScreenSharing = () => {
 
   const startScreenSharing = async () => {
     const screenStream = await navigator.mediaDevices.getDisplayMedia({
-      video: true,
+      video: {
+        width: { max: 1280 },
+        height: { max: 720 },
+        frameRate: { max: 15 },
+      },
       audio: true,
     });
 
@@ -25,6 +29,12 @@ export const useScreenSharing = () => {
     const videoProducer = await producerTransport!.produce({
       track: screenTrack,
       appData: { source: 'screen-video' },
+      encodings: [
+        {
+          maxBitrate: 400_000,
+          maxFramerate: 15,
+        },
+      ],
     });
 
     setVideoProducer(videoProducer);
@@ -37,6 +47,13 @@ export const useScreenSharing = () => {
       const audioProducer = await producerTransport!.produce({
         track: audioTrack,
         appData: { source: 'screen-audio' },
+        codecOptions: {
+          opusDtx: true,
+          opusFec: true,
+          opusStereo: false,
+          opusMaxPlaybackRate: 16000,
+          opusMaxAverageBitrate: 20000,
+        },
       });
       setVideoAudioProducer(audioProducer);
       audioProducerIdRef.current = audioProducer.id;

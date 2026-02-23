@@ -49,15 +49,29 @@ export const getLocalAudioStream = async (
   settings?: MicSettings,
 ): Promise<MicAudioState> => {
   const micSettings = settings ?? getDefaultMicSettings();
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: {
-      channelCount: 1,
-      sampleRate: 16000,
-      noiseSuppression: micSettings.noiseSuppression,
-      echoCancellation: micSettings.echoCancellation,
-      autoGainControl: micSettings.autoGainControl,
-    },
-  });
+  const preferredAudioConstraints: MediaTrackConstraints = {
+    channelCount: { ideal: 1 },
+    sampleRate: { ideal: 16000 },
+    noiseSuppression: micSettings.noiseSuppression,
+    echoCancellation: micSettings.echoCancellation,
+    autoGainControl: micSettings.autoGainControl,
+  };
+  let stream: MediaStream;
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: preferredAudioConstraints,
+    });
+  } catch {
+    // Fallback for browsers/devices that do not accept sample-rate/channel constraints.
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        noiseSuppression: micSettings.noiseSuppression,
+        echoCancellation: micSettings.echoCancellation,
+        autoGainControl: micSettings.autoGainControl,
+      },
+    });
+  }
 
   const rawTrack = stream.getAudioTracks()[0];
   const audioContext = new AudioContext();
@@ -169,6 +183,13 @@ export const createSendTransport = async (
 
         const audioProducer = await producerTransport.produce({
           track: audioTrack,
+          codecOptions: {
+            opusDtx: true,
+            opusFec: true,
+            opusStereo: false,
+            opusMaxPlaybackRate: 16000,
+            opusMaxAverageBitrate: 20000,
+          },
         });
 
         setAudioProducer(audioProducer);
