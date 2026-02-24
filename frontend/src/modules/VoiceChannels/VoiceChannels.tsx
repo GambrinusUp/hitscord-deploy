@@ -43,6 +43,13 @@ export const VoiceChannels = () => {
     useAudioContext();
   const { calculateIsSpeaking } = useSpeaking();
   const rooms = getUserGroups(users);
+  const getIsStreamingOrCameraEnabled = (
+    producers: Array<{ source?: string }>,
+  ) =>
+    producers.some(
+      (producer) =>
+        producer.source === 'screen-video' || producer.source === 'camera',
+    );
   const canWorkChannels = serverData.permissions.canWorkChannels;
   const canIgnoreMaxCount = serverData.permissions.canIgnoreMaxCount;
 
@@ -142,7 +149,7 @@ export const VoiceChannels = () => {
   };
 
   const handleMuteUser = (userId: string, isMuted: boolean | undefined) => {
-    //console.log(isMuted);
+    console.log(isMuted);
 
     if (isMuted) {
       socket.emit(
@@ -254,7 +261,22 @@ export const VoiceChannels = () => {
                   {rooms
                     .filter((room) => room.roomName === channelId)
                     .flatMap((room) =>
-                      Object.entries(room.users).map(
+                      Object.entries(room.users)
+                        .sort(([, userA], [, userB]) => {
+                          const aPriority = getIsStreamingOrCameraEnabled(
+                            userA.producers,
+                          )
+                            ? 1
+                            : 0;
+                          const bPriority = getIsStreamingOrCameraEnabled(
+                            userB.producers,
+                          )
+                            ? 1
+                            : 0;
+
+                          return bPriority - aPriority;
+                        })
+                        .map(
                         ([socketId, { producers, userName, userId }]) => {
                           const producerIds = producers.map(
                             (producer) => producer.producerId,
