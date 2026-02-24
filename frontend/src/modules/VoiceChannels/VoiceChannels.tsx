@@ -68,7 +68,13 @@ export const VoiceChannels = () => {
       dispatch(setCurrentVoiceChannelId(channelId));
       dispatch(setCurrentVoiceChannelName(channelId));
       dispatch(setCurrentVoiceChannelServerId(serverData.serverId));
-      connect(channelId, user.name, user.id, serverData.serverId, accessToken);
+      await connect(
+        channelId,
+        user.name,
+        user.id,
+        serverData.serverId,
+        accessToken,
+      );
     } else {
       if (channelId === currentVoiceChannelId) {
         dispatch(toggleUserStreamView());
@@ -80,7 +86,7 @@ export const VoiceChannels = () => {
         dispatch(setCurrentVoiceChannelId(channelId));
         dispatch(setCurrentVoiceChannelName(channelId));
         dispatch(setCurrentVoiceChannelServerId(serverData.serverId));
-        connect(
+        await connect(
           channelId,
           user.name,
           user.id,
