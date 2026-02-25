@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosResponse } from "axios";
+import axios, { AxiosResponse } from "axios";
 import { API_URL } from "../constants";
 
 export const joinVoiceChannel = async (
@@ -22,13 +22,13 @@ export const joinVoiceChannel = async (
     return response;
   } catch (error: any) {
     console.error(error);
-    if (error instanceof AxiosError) {
-      throw new Error(
-        `Request failed with status code ${error.response?.status}: ${error.message}`
-      );
-    } else {
-      throw new Error(`Unknown error: ${error.data.message}`);
+    if (axios.isAxiosError(error)) {
+      throw error;
     }
+
+    throw error instanceof Error
+      ? error
+      : new Error(`Unknown error: ${error?.data?.message ?? "Unknown error"}`);
   }
 };
 
@@ -50,13 +50,13 @@ export const removeVoiceChannel = async (
     return response;
   } catch (error: any) {
     console.error(error);
-    if (error instanceof AxiosError) {
-      throw new Error(
-        `Request failed with status code ${error.response?.status}: ${error.message}`
-      );
-    } else {
-      throw new Error(`Unknown error: ${error.data.message}`);
+    if (axios.isAxiosError(error)) {
+      throw error;
     }
+
+    throw error instanceof Error
+      ? error
+      : new Error(`Unknown error: ${error?.data?.message ?? "Unknown error"}`);
   }
 };
 
@@ -78,13 +78,13 @@ export const toggleStream = async (
     return response;
   } catch (error: any) {
     console.error(error);
-    if (error instanceof AxiosError) {
-      throw new Error(
-        `Request failed with status code ${error.response?.status}: ${error.message}`
-      );
-    } else {
-      throw new Error(`Unknown error: ${error.data.message}`);
+    if (axios.isAxiosError(error)) {
+      throw error;
     }
+
+    throw error instanceof Error
+      ? error
+      : new Error(`Unknown error: ${error?.data?.message ?? "Unknown error"}`);
   }
 };
 
@@ -109,12 +109,12 @@ export const muteUser = async (
     return response;
   } catch (error: any) {
     console.error(error);
-    if (error instanceof AxiosError) {
-      throw new Error(
-        `Request failed with status code ${error.response?.status}: ${error.message}`
-      );
-    } else {
-      throw new Error(`Unknown error: ${error.data.message}`);
+    if (axios.isAxiosError(error)) {
+      throw error;
     }
+
+    throw error instanceof Error
+      ? error
+      : new Error(`Unknown error: ${error?.data?.message ?? "Unknown error"}`);
   }
 };
