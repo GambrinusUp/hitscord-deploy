@@ -24,6 +24,7 @@ import {
   toggleStream,
   muteUser,
 } from "./services/apiService";
+import axios from "axios";
 
 const app = express();
 let worker: Worker<AppData>;
@@ -143,8 +144,34 @@ connections.on("connection", async (socket) => {
     ) => {
       currentServerId = serverId;
 
-      try {
-        const response = await joinVoiceChannel(roomName, accessToken);
+try {
+        let response: Awaited<ReturnType<typeof joinVoiceChannel>>;
+
+        try {
+          response = await joinVoiceChannel(roomName, accessToken);
+        } catch (error) {
+          const isAlreadyInChannelError =
+            axios.isAxiosError(error) &&
+            error.response?.status === 400;
+
+          const isAlreadyConnectedToRequestedRoom =
+            store.peers[socket.id]?.roomName === roomName;
+
+          if (isAlreadyInChannelError && !isAlreadyConnectedToRequestedRoom) {
+            const disconnectResponse = await removeVoiceChannel(
+              roomName,
+              accessToken,
+            );
+
+            if (disconnectResponse.status === 200) {
+              response = await joinVoiceChannel(roomName, accessToken);
+            } else {
+              throw new Error("Failed to disconnect from voice channel");
+            }
+          } else {
+            throw error;
+          }
+        }
 
         if (response.status === 200) {
           const router1 = await createRoom(
