@@ -24,6 +24,26 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
   const trackAdditionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const resumeAudio = async () => {
+    // Clean up previous audio context if it's closed
+    if (audioCtxRef.current?.state === 'closed') {
+      audioCtxRef.current = null;
+
+      // Also reset audio elements to avoid stale references
+      if (mutedAudioRef.current) {
+        mutedAudioRef.current.pause();
+        mutedAudioRef.current.srcObject = null;
+        mutedAudioRef.current = null;
+      }
+
+      if (mainAudioRef.current) {
+        mainAudioRef.current.pause();
+        mainAudioRef.current.srcObject = null;
+        mainAudioRef.current = null;
+      }
+      // Reset destination
+      destRef.current = null;
+    }
+
     if (!audioCtxRef.current) {
       const audioContextCtor =
         window.AudioContext ||
@@ -79,8 +99,27 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
   };
 
   useEffect(() => {
-    if (consumers.length > 0 && !audioCtxRef.current) {
-      resumeAudio();
+    // Handle transitions between channels
+    if (consumers.length === 0) {
+      // User left the channel - mark that we need fresh setup on re-entry
+      // Don't close AudioContext yet, just mark state
+      if (nodesRef.current.size === 0 && audioCtxRef.current?.state === 'running') {
+        // AudioContext will be reused, but streams may need reset
+        if (allRemoteStreamRef.current) {
+          allRemoteStreamRef.current.getTracks().forEach(track => {
+            allRemoteStreamRef.current.removeTrack(track);
+          });
+        }
+      }
+    } else if (consumers.length > 0) {
+      // User entered a channel
+      if (!audioCtxRef.current) {
+        resumeAudio();
+      } else if (audioCtxRef.current.state === 'closed') {
+        // AudioContext was closed, need to create a new one
+        audioCtxRef.current = null;
+        resumeAudio();
+      }
     }
   }, [consumers.length]);
 
@@ -201,6 +240,20 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
           .catch((e) => console.error('Main audio play error:', e));
       }
     }
+
+    // Cleanup when exiting channel
+    return () => {
+      if (consumers.length === 0) {
+        // Clear any pending track removals when leaving channel
+        pendingTrackRemovals.current.clear();
+        
+        // Stop trying to add more tracks
+        if (trackAdditionTimeoutRef.current) {
+          clearTimeout(trackAdditionTimeoutRef.current);
+          trackAdditionTimeoutRef.current = null;
+        }
+      }
+    };
   }, [consumers, audioState, userVolumes]);
 
   useEffect(() => {
