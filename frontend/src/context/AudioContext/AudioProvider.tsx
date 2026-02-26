@@ -10,7 +10,14 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
   const { consumers } = useMediaContext();
   const audioCtxRef = useRef<AudioContext | null>(null);
   const nodesRef = useRef(
-    new Map<string, { source: MediaStreamAudioSourceNode; gain: GainNode }>(),
+    new Map<
+      string,
+      {
+        source: MediaStreamAudioSourceNode;
+        gain: GainNode;
+        track: MediaStreamTrack;
+      }
+    >(),
   );
   const [userVolumes, setUserVolumes] = useState<Record<string, number>>({});
   const producerToUserMap = useRef(new Map<string, string>());
@@ -24,26 +31,6 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
   const trackAdditionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const resumeAudio = async () => {
-    // Clean up previous audio context if it's closed
-    if (audioCtxRef.current?.state === 'closed') {
-      audioCtxRef.current = null;
-
-      // Also reset audio elements to avoid stale references
-      if (mutedAudioRef.current) {
-        mutedAudioRef.current.pause();
-        mutedAudioRef.current.srcObject = null;
-        mutedAudioRef.current = null;
-      }
-
-      if (mainAudioRef.current) {
-        mainAudioRef.current.pause();
-        mainAudioRef.current.srcObject = null;
-        mainAudioRef.current = null;
-      }
-      // Reset destination
-      destRef.current = null;
-    }
-
     if (!audioCtxRef.current) {
       const audioContextCtor =
         window.AudioContext ||
@@ -99,27 +86,8 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
   };
 
   useEffect(() => {
-    // Handle transitions between channels
-    if (consumers.length === 0) {
-      // User left the channel - mark that we need fresh setup on re-entry
-      // Don't close AudioContext yet, just mark state
-      if (nodesRef.current.size === 0 && audioCtxRef.current?.state === 'running') {
-        // AudioContext will be reused, but streams may need reset
-        if (allRemoteStreamRef.current) {
-          allRemoteStreamRef.current.getTracks().forEach(track => {
-            allRemoteStreamRef.current.removeTrack(track);
-          });
-        }
-      }
-    } else if (consumers.length > 0) {
-      // User entered a channel
-      if (!audioCtxRef.current) {
-        resumeAudio();
-      } else if (audioCtxRef.current.state === 'closed') {
-        // AudioContext was closed, need to create a new one
-        audioCtxRef.current = null;
-        resumeAudio();
-      }
+    if (consumers.length > 0 && !audioCtxRef.current) {
+      resumeAudio();
     }
   }, [consumers.length]);
 
@@ -178,6 +146,7 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
         nodesRef.current.set(producerId, {
           source: sourceNode,
           gain: gainNode,
+          track,
         });
       }
     });
@@ -199,35 +168,35 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
         pendingTrackRemovals.current.add(producerId);
 
         const nodes = nodesRef.current.get(producerId);
-        const producer = consumers.find((c) => c.producerId === producerId);
 
-        if (nodes && producer) {
-          const fadeOutDuration = 0.2;
-          const currentTime = audioCtx.currentTime;
-          nodes.gain.gain.setValueAtTime(nodes.gain.gain.value, currentTime);
-          nodes.gain.gain.linearRampToValueAtTime(
-            0,
-            currentTime + fadeOutDuration,
-          );
+        if (!nodes) {
+          pendingTrackRemovals.current.delete(producerId);
 
-          setTimeout(
-            () => {
-              nodes.gain.disconnect();
-              nodes.source.disconnect();
-              nodesRef.current.delete(producerId);
-              pendingTrackRemovals.current.delete(producerId);
-
-              allRemoteStream.removeTrack(producer.track);
-
-              if (mutedAudioRef.current) {
-                mutedAudioRef.current.srcObject = new MediaStream(
-                  allRemoteStream.getTracks(),
-                );
-              }
-            },
-            fadeOutDuration * 1000 + 10,
-          );
+          return;
         }
+
+        const fadeOutDuration = 0.2;
+        const currentTime = audioCtx.currentTime;
+        nodes.gain.gain.setValueAtTime(nodes.gain.gain.value, currentTime);
+        nodes.gain.gain.linearRampToValueAtTime(0, currentTime + fadeOutDuration);
+
+        setTimeout(
+          () => {
+            nodes.gain.disconnect();
+            nodes.source.disconnect();
+            nodesRef.current.delete(producerId);
+            pendingTrackRemovals.current.delete(producerId);
+
+            allRemoteStream.removeTrack(nodes.track);
+
+            if (mutedAudioRef.current) {
+              mutedAudioRef.current.srcObject = new MediaStream(
+                allRemoteStream.getTracks(),
+              );
+            }
+          },
+          fadeOutDuration * 1000 + 10,
+        );
       });
     }
 
@@ -240,20 +209,6 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
           .catch((e) => console.error('Main audio play error:', e));
       }
     }
-
-    // Cleanup when exiting channel
-    return () => {
-      if (consumers.length === 0) {
-        // Clear any pending track removals when leaving channel
-        pendingTrackRemovals.current.clear();
-        
-        // Stop trying to add more tracks
-        if (trackAdditionTimeoutRef.current) {
-          clearTimeout(trackAdditionTimeoutRef.current);
-          trackAdditionTimeoutRef.current = null;
-        }
-      }
-    };
   }, [consumers, audioState, userVolumes]);
 
   useEffect(() => {
