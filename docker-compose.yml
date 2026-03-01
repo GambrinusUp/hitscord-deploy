@@ -9,15 +9,11 @@ services:
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.le.acme.tlschallenge=true
-      - --certificatesresolvers.le.acme.email=${LETSENCRYPT_EMAIL}
-      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - traefik-letsencrypt:/letsencrypt
     restart: unless-stopped
     networks:
       - web
@@ -34,7 +30,6 @@ services:
       - "traefik.http.routers.frontend.rule=Host(`${DOMAIN}`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls=true"
-      - "traefik.http.routers.frontend.tls.certresolver=le"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
     networks:
       - web
@@ -48,10 +43,9 @@ services:
       - .env
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.media.rule=Host(`hitscord.site`) && PathPrefix(`/mediasoup`)"
+      - "traefik.http.routers.media.rule=Host(`${DOMAIN}`) && PathPrefix(`/mediasoup`)"
       - "traefik.http.routers.media.entrypoints=websecure"
       - "traefik.http.routers.media.tls=true"
-      - "traefik.http.routers.media.tls.certresolver=le"
       - "traefik.http.services.media.loadbalancer.server.port=3000"
       - "traefik.http.routers.media.middlewares=media-stripprefix"
       - "traefik.http.middlewares.media-stripprefix.stripprefix.prefixes=/mediasoup"
@@ -61,9 +55,6 @@ services:
     networks:
       - web
     restart: unless-stopped
-
-volumes:
-  traefik-letsencrypt:
 
 networks:
   web:
