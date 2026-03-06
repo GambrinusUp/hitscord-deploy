@@ -2,20 +2,55 @@ import {
   Divider,
   Group,
   Paper,
+  Select,
   Slider,
   Stack,
   Switch,
   Text,
   Title,
 } from '@mantine/core';
+import { useEffect } from 'react';
 
 import { useMediaContext } from '~/context';
 import { useAudioSettings, useImagePreloadSetting } from '~/shared/lib/hooks';
 
+const SYSTEM_DEVICE_VALUE = '__system_default__';
+
 export const EditConfiguration = () => {
-  const { micSettings, setMicSettings } = useMediaContext();
+  const {
+    micSettings,
+    setMicSettings,
+    audioInputDevices,
+    audioOutputDevices,
+    selectedOutputDeviceId,
+    setSelectedOutputDeviceId,
+    refreshAudioDevices,
+    switchInputDevice,
+  } = useMediaContext();
   const { volume, volumePercent, setNotificationVolume } = useAudioSettings();
   const { preloadImages, setPreloadImages } = useImagePreloadSetting();
+  const inputDeviceOptions = [
+    { value: SYSTEM_DEVICE_VALUE, label: 'System default microphone' },
+    ...audioInputDevices
+      .filter((device) => Boolean(device.deviceId))
+      .map((device, index) => ({
+        value: device.deviceId,
+        label: device.label || `Microphone ${index + 1}`,
+      })),
+  ];
+  const outputDeviceOptions = [
+    { value: SYSTEM_DEVICE_VALUE, label: 'System default output' },
+    ...audioOutputDevices
+      .filter((device) => Boolean(device.deviceId))
+      .map((device, index) => ({
+        value: device.deviceId,
+        label: device.label || `Output ${index + 1}`,
+      })),
+  ];
+
+  useEffect(() => {
+    refreshAudioDevices();
+  }, [refreshAudioDevices]);
 
   return (
     <Stack
@@ -39,6 +74,28 @@ export const EditConfiguration = () => {
           <Title order={3} c="var(--color-white)">
             Настройки микрофона
           </Title>
+          <Select
+            label="Input device"
+            data={inputDeviceOptions}
+            value={micSettings.inputDeviceId || SYSTEM_DEVICE_VALUE}
+            onChange={(value) =>
+              switchInputDevice(
+                !value || value === SYSTEM_DEVICE_VALUE ? null : value,
+              )
+            }
+            nothingFoundMessage="No input devices"
+          />
+          <Select
+            label="Output device"
+            data={outputDeviceOptions}
+            value={selectedOutputDeviceId || SYSTEM_DEVICE_VALUE}
+            onChange={(value) =>
+              setSelectedOutputDeviceId(
+                !value || value === SYSTEM_DEVICE_VALUE ? null : value,
+              )
+            }
+            nothingFoundMessage="No output devices"
+          />
           <Stack gap={6}>
             <Group justify="space-between">
               <Text size="sm" c="var(--color-white)">

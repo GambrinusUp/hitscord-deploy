@@ -20,6 +20,7 @@ export type MicSettings = {
   noiseSuppression: boolean;
   echoCancellation: boolean;
   autoGainControl: boolean;
+  inputDeviceId: string | null;
 };
 
 export type MicAudioState = {
@@ -35,6 +36,7 @@ export const getDefaultMicSettings = (): MicSettings => ({
   noiseSuppression: true,
   echoCancellation: true,
   autoGainControl: false,
+  inputDeviceId: null,
 });
 
 export const calculateMicGain = (settings: MicSettings) => {
@@ -49,27 +51,29 @@ export const getLocalAudioStream = async (
   settings?: MicSettings,
 ): Promise<MicAudioState> => {
   const micSettings = settings ?? getDefaultMicSettings();
-  const preferredAudioConstraints: MediaTrackConstraints = {
+  const buildConstraints = (
+    inputDeviceId: string | null,
+  ): MediaTrackConstraints => ({
     channelCount: { ideal: 1 },
     sampleRate: { ideal: 16000 },
     noiseSuppression: micSettings.noiseSuppression,
     echoCancellation: micSettings.echoCancellation,
     autoGainControl: micSettings.autoGainControl,
-  };
-  let stream: MediaStream;
+    ...(inputDeviceId ? { deviceId: { exact: inputDeviceId } } : {}),
+  });
 
+  let stream: MediaStream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      audio: preferredAudioConstraints,
+      audio: buildConstraints(micSettings.inputDeviceId),
     });
-  } catch {
-    // Fallback for browsers/devices that do not accept sample-rate/channel constraints.
+  } catch (error) {
+    if (!micSettings.inputDeviceId) {
+      throw error;
+    }
+
     stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        noiseSuppression: micSettings.noiseSuppression,
-        echoCancellation: micSettings.echoCancellation,
-        autoGainControl: micSettings.autoGainControl,
-      },
+      audio: buildConstraints(null),
     });
   }
 

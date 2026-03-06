@@ -1206,7 +1206,86 @@ const testServerSlice = createSlice({
           changeVoiceChannelSettings.fulfilled,
           changeNotificationChannelSettings.fulfilled,
         ),
-        (state) => {
+        (state, { meta }) => {
+          const { settings } = meta.arg;
+          const typeToKey: Partial<
+            Record<number, keyof typeof state.roleSettings>
+          > = {
+            0: 'canSee',
+            1: 'canJoin',
+            2: 'canWrite',
+            3: 'canWriteSub',
+            4: 'canUse',
+            5: 'notificated',
+          };
+          const settingsKey = typeToKey[settings.type];
+
+          if (!settingsKey) {
+            state.error = '';
+
+            return;
+          }
+
+          const currentSettings = state.roleSettings[settingsKey];
+          const role = state.serverData.roles.find(
+            (item) => item.id === settings.roleId,
+          );
+          const removeRoleFromSetting = (
+            key: keyof typeof state.roleSettings,
+          ) => {
+            const setting = state.roleSettings[key];
+
+            if (setting !== null) {
+              state.roleSettings[key] = setting.filter(
+                (item) => item.id !== settings.roleId,
+              );
+            }
+          };
+
+          if (currentSettings === null) {
+            state.roleSettings[settingsKey] = settings.add
+              ? role
+                ? [role]
+                : []
+              : state.serverData.roles.filter(
+                  (item) => item.id !== settings.roleId,
+                );
+          } else if (settings.add) {
+            const hasRole = currentSettings.some(
+              (item) => item.id === settings.roleId,
+            );
+
+            if (!hasRole && role) {
+              currentSettings.push(role);
+            }
+          } else {
+            state.roleSettings[settingsKey] = currentSettings.filter(
+              (item) => item.id !== settings.roleId,
+            );
+          }
+
+          if (settingsKey === 'canSee' && !settings.add) {
+            removeRoleFromSetting('canJoin');
+            removeRoleFromSetting('canWrite');
+            removeRoleFromSetting('canWriteSub');
+            removeRoleFromSetting('canUse');
+            removeRoleFromSetting('notificated');
+          }
+
+          if (settingsKey !== 'canSee' && settings.add && role) {
+            const canSeeSettings = state.roleSettings.canSee;
+
+            if (canSeeSettings !== null) {
+              const hasRoleInCanSee = canSeeSettings.some(
+                (item) => item.id === settings.roleId,
+              );
+
+              if (!hasRoleInCanSee) {
+                canSeeSettings.push(role);
+              }
+            }
+          }
+
           state.error = '';
         },
       )

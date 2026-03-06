@@ -14,7 +14,7 @@ import { ChannelRoles } from './ChannelRoles';
 import { DeleteChannel } from './DeleteChannel';
 import { EditChannelName } from './EditChannelName';
 import { EditChannelUserCount } from './EditChannelUserCount';
-import { EditRolesSettings } from './EditRolesSettings';
+import { EditRolesSettings } from './NewEditRolesSettings';
 
 import { useAppDispatch, useAppSelector } from '~/hooks';
 import { ChannelType, getChannelSettings } from '~/store/ServerStore';

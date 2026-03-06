@@ -42,6 +42,12 @@ export const MediaContext = createContext<{
   setIsUserMute: React.Dispatch<React.SetStateAction<boolean>>;
   micSettings: MicSettings;
   setMicSettings: React.Dispatch<React.SetStateAction<MicSettings>>;
+  audioInputDevices: MediaDeviceInfo[];
+  audioOutputDevices: MediaDeviceInfo[];
+  selectedOutputDeviceId: string | null;
+  setSelectedOutputDeviceId: React.Dispatch<React.SetStateAction<string | null>>;
+  refreshAudioDevices: () => Promise<void>;
+  switchInputDevice: (deviceId: string | null) => Promise<void>;
   setMicAudioState: (state: MicAudioState | null) => void;
   clearMicAudioState: () => void;
 } | null>(null);

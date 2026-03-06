@@ -5,3 +5,5 @@ export { attachFile, removeFile } from './model/actions';
 export { getFile, getIcon } from './api/files';
 
 export type { FileResponse } from './model/types';
+
+export { FileUploadOverlay } from './ui/FileUploadOverlay';

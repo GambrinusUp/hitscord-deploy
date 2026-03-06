@@ -12,7 +12,7 @@ import { ArrowDown, Paperclip, Send } from 'lucide-react';
 import { useRef, useState } from 'react';
 
 import { ChatMessage } from '~/entities/chat';
-import { attachFile, clearFiles } from '~/entities/files';
+import { attachFile, clearFiles, FileUploadOverlay } from '~/entities/files';
 import { MessageType, useMessageAuthor } from '~/entities/message';
 import { setCurrentSubChatId, setSubChatInfo } from '~/entities/subChat';
 import { AttachedFilesList } from '~/features/attachedFilesList';
@@ -80,6 +80,7 @@ export const SubChat = ({ opened, MessagesList }: SubChatProps) => {
   });
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const handleSendMessage = (nestedChannel: boolean) => {
     const trimmedText = newMessage.trim();
@@ -137,6 +138,68 @@ export const SubChat = ({ opened, MessagesList }: SubChatProps) => {
     }
 
     e.target.value = '';
+  };
+
+  const uploadFiles = async (files: FileList | File[]) => {
+    if (!currentSubChatId || !!editingMessage) return;
+
+    for (const file of Array.from(files)) {
+      await dispatch(
+        attachFile({ channelId: currentSubChatId, file }),
+      ).unwrap();
+    }
+  };
+
+  const handlePaste = async (
+    event: React.ClipboardEvent<HTMLTextAreaElement>,
+  ) => {
+    const files = Array.from(event.clipboardData.items)
+      .filter((item) => item.kind === 'file')
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => file !== null);
+
+    if (files.length === 0) return;
+
+    event.preventDefault();
+    await uploadFiles(files);
+  };
+
+  const hasFiles = (event: React.DragEvent) => {
+    return event.dataTransfer.types.includes('Files');
+  };
+
+  const handleDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+
+    if (hasFiles(event) && currentSubChatId && !editingMessage) {
+      setIsDragOver(true);
+    }
+  };
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    if (event.currentTarget.contains(event.relatedTarget as Node)) {
+      return;
+    }
+    setIsDragOver(false);
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+
+    if (hasFiles(event) && currentSubChatId && !editingMessage) {
+      setIsDragOver(true);
+    }
+  };
+
+  const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragOver(false);
+
+    if (!hasFiles(event) || !currentSubChatId || !!editingMessage) {
+      return;
+    }
+
+    await uploadFiles(event.dataTransfer.files);
   };
 
   const handleClose = () => {
@@ -239,7 +302,14 @@ export const SubChat = ({ opened, MessagesList }: SubChatProps) => {
               )}
             </Box>
 
-            <Box pos="relative">
+            <Box
+              pos="relative"
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            >
+              {isDragOver && <FileUploadOverlay />}
               <AttachedFilesList />
               {replyMessage && (
                 <Box p={6}>
@@ -292,6 +362,7 @@ export const SubChat = ({ opened, MessagesList }: SubChatProps) => {
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
                   autosize
                   minRows={1}
                   maxRows={3}

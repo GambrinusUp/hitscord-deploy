@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 
 import { AudioContext as CustomAudioContext } from './AudioContext';
 
@@ -7,7 +7,7 @@ import { getStoredVolume } from '~/shared/lib/utils/getStoredVolume';
 import { saveVolumeToStorage } from '~/shared/lib/utils/saveVolumeToStorage';
 
 export const AudioProvider = (props: React.PropsWithChildren) => {
-  const { consumers } = useMediaContext();
+  const { consumers, selectedOutputDeviceId } = useMediaContext();
   const audioCtxRef = useRef<AudioContext | null>(null);
   const nodesRef = useRef(
     new Map<
@@ -29,6 +29,25 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
   const destRef = useRef<MediaStreamAudioDestinationNode | null>(null);
   const pendingTrackRemovals = useRef<Set<string>>(new Set());
   const trackAdditionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const applyOutputDevice = async (
+    audioElement: HTMLAudioElement | null,
+    outputDeviceId: string | null,
+  ) => {
+    if (!audioElement) return;
+
+    const outputElement = audioElement as HTMLAudioElement & {
+      setSinkId?: (sinkId: string) => Promise<void>;
+    };
+
+    if (typeof outputElement.setSinkId !== 'function') return;
+
+    try {
+      await outputElement.setSinkId(outputDeviceId ?? '');
+    } catch (error) {
+      console.error('Failed to set audio output device:', error);
+    }
+  };
 
   const resumeAudio = async () => {
     if (!audioCtxRef.current) {
@@ -69,6 +88,8 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
       mainAudioRef.current.volume = 1;
       document.body.appendChild(mainAudioRef.current);
     }
+
+    await applyOutputDevice(mainAudioRef.current, selectedOutputDeviceId);
 
     if (audioCtxRef.current.state === 'suspended') {
       try {
@@ -178,7 +199,10 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
         const fadeOutDuration = 0.2;
         const currentTime = audioCtx.currentTime;
         nodes.gain.gain.setValueAtTime(nodes.gain.gain.value, currentTime);
-        nodes.gain.gain.linearRampToValueAtTime(0, currentTime + fadeOutDuration);
+        nodes.gain.gain.linearRampToValueAtTime(
+          0,
+          currentTime + fadeOutDuration,
+        );
 
         setTimeout(
           () => {
@@ -210,6 +234,10 @@ export const AudioProvider = (props: React.PropsWithChildren) => {
       }
     }
   }, [consumers, audioState, userVolumes]);
+
+  useEffect(() => {
+    applyOutputDevice(mainAudioRef.current, selectedOutputDeviceId);
+  }, [selectedOutputDeviceId]);
 
   useEffect(() => {
     nodesRef.current.forEach(({ gain }, producerId) => {
