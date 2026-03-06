@@ -1,9 +1,6 @@
-const defaultOrigin = 'https://62.76.142.57';
-
-export const API_URL =
-  import.meta.env.VITE_BASE_URL?.replace(/\/api\/?$/, '') || defaultOrigin;
-export const WEBSOCKET_MEDIA_URL =
-  import.meta.env.VITE_MEDIA_URL || `${defaultOrigin}/mediasoup`;
+export const API_URL = 'https://196673.msk.web.highserver.ru';
+export const WEBSOCKET_MEDIA_URL = 'https://hitscord.site/mediasoup'; // https://192.168.0.101:3000/mediasoup
+//export const WEBSOCKET_MEDIA_URL = 'https://192.168.0.12:3000/mediasoup';
 export const MAX_MESSAGE_NUMBER = 15;
 
 export const SETTINGS_NAMES = {

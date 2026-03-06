@@ -5,8 +5,9 @@ import { useState } from 'react';
 import { useAppDispatch, useAppSelector } from '~/hooks';
 import { createInvitation } from '~/store/ServerStore';
 
+//const FRONTEND_URL = import.meta.env.VITE_BASE_URL?.replace('/api', '') || 'https://hitscord.site';
 const getInviteLink = (invitationString: string) =>
-  `${window.location.origin}/#/invite/${invitationString}`;
+  `https://hitscord.site/#/invite/${invitationString}`;
 
 interface CreateInvitationProps {
   opened: boolean;
