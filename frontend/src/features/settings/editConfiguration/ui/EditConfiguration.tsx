@@ -75,7 +75,7 @@ export const EditConfiguration = () => {
             Настройки микрофона
           </Title>
           <Select
-            label="Input device"
+            label="Устройство ввода"
             data={inputDeviceOptions}
             value={micSettings.inputDeviceId || SYSTEM_DEVICE_VALUE}
             onChange={(value) =>
@@ -83,10 +83,10 @@ export const EditConfiguration = () => {
                 !value || value === SYSTEM_DEVICE_VALUE ? null : value,
               )
             }
-            nothingFoundMessage="No input devices"
+            nothingFoundMessage="Не найдено устройств ввода"
           />
           <Select
-            label="Output device"
+            label="Устройство вывода"
             data={outputDeviceOptions}
             value={selectedOutputDeviceId || SYSTEM_DEVICE_VALUE}
             onChange={(value) =>
@@ -94,7 +94,7 @@ export const EditConfiguration = () => {
                 !value || value === SYSTEM_DEVICE_VALUE ? null : value,
               )
             }
-            nothingFoundMessage="No output devices"
+            nothingFoundMessage="Не найдено устройств вывода"
           />
           <Stack gap={6}>
             <Group justify="space-between">
