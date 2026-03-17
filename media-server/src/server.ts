@@ -25,6 +25,18 @@ import {
   muteUser,
 } from "./services/apiService";
 import axios from "axios";
+import {
+  attachProcessHandlers,
+  getAdminState,
+  increment,
+  logError,
+  logInfo,
+} from "./utils/monitoring";
+import {
+  getMetrics,
+  metricsContentType,
+  setActiveConnections,
+} from "./utils/metrics";
 
 const app = express();
 let worker: Worker<AppData>;
@@ -34,9 +46,13 @@ app.use(express.json());
 //app.use("/sfu/:room", express.static(path.join(process.cwd(), "public")));
 //app.use(routes);
 
+attachProcessHandlers();
+
 const httpServer = http.createServer(app);
 httpServer.listen(Number(process.env.PORT), "0.0.0.0", () => {
-  console.log(`Media server listening on http://0.0.0.0:${process.env.PORT}`);
+  logInfo(
+    `Media server listening on http://0.0.0.0:${process.env.PORT || ""}`,
+  );
 });
 
 const io = new Server(httpServer, {
@@ -52,7 +68,48 @@ const connections = io.of("/mediasoup");
   worker = await createsWorker();
 })();
 
+const adminToken = process.env.ADMIN_TOKEN;
+const requireAdmin = (req: express.Request, res: express.Response, next) => {
+  if (!adminToken) {
+    return res.status(501).json({ error: "ADMIN_TOKEN not set" });
+  }
+
+  const token = req.header("x-admin-token");
+  if (!token || token !== adminToken) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  return next();
+};
+
+app.get("/admin/health", requireAdmin, (req, res) => {
+  res.json({ ok: true });
+});
+
+app.get("/admin/state", requireAdmin, (req, res) => {
+  res.json(getAdminState(connections.sockets.size));
+});
+
+app.get("/metrics", async (req, res) => {
+  try {
+    res.setHeader("Content-Type", metricsContentType);
+    res.end(await getMetrics());
+  } catch (error) {
+    logError("metrics", error);
+    res.status(500).end();
+  }
+});
+
+app.use(
+  (err: Error, req: express.Request, res: express.Response, _next) => {
+    logError("express", err, { path: req.path });
+    res.status(500).json({ error: "Internal Server Error" });
+  },
+);
+
 connections.on("connection", async (socket) => {
+  increment("socket.connections");
+  setActiveConnections(connections.sockets.size);
   socket.emit("connection-success", {
     socketId: socket.id,
   });
@@ -60,6 +117,7 @@ connections.on("connection", async (socket) => {
   let currentServerId = "";
 
   socket.on("setServer", ({ serverId, userName, userId }) => {
+    increment("socket.setServer");
     for (const otherServerId in store.serversUser) {
       if (store.serversUser.hasOwnProperty(otherServerId)) {
         store.serversUser[otherServerId].users = store.serversUser[
@@ -107,14 +165,16 @@ connections.on("connection", async (socket) => {
           socket.emit("leaveConfirmed");
         }
       } catch (error: any) {
-        console.log(error.status, error.data);
+        logError("leaveRoom.api", error, { socketId: socket.id });
       }
     } catch (error: any) {
-      console.log(error.status, error.data);
+      logError("leaveRoom", error, { socketId: socket.id });
     }
   });
 
   socket.on("disconnect", () => {
+    increment("socket.disconnects");
+    setActiveConnections(connections.sockets.size);
     store.removeConsumer(socket.id);
     store.removeProducer(socket.id);
     store.removeTransport(socket.id);
@@ -144,7 +204,7 @@ connections.on("connection", async (socket) => {
     ) => {
       currentServerId = serverId;
 
-try {
+      try {
         let response: Awaited<ReturnType<typeof joinVoiceChannel>>;
 
         try {
@@ -191,6 +251,7 @@ try {
           }
         }
       } catch (error) {
+        logError("joinRoom", error, { socketId: socket.id, roomName });
         callback({ error });
         /*if (axios.isAxiosError(error)) {
           callback({
@@ -240,7 +301,7 @@ try {
           store.addTransport(transport, roomName, consumer, socket.id);
         },
         (error) => {
-          console.log(error);
+          logError("createWebRtcTransport", error, { socketId: socket.id });
         },
       );
     }
@@ -259,14 +320,17 @@ try {
         await transport.connect({ dtlsParameters });
       }
     } catch (error) {
-      console.error("Error in transport-connect:", error);
+      logError("transport-connect", error, { socketId: socket.id });
     }
   });
 
   socket.on(
     "transport-produce",
     async ({ kind, rtpParameters, accessToken, appData }, callback) => {
-      console.log("transport-produce event received, kind:", kind);
+      logInfo("transport-produce event received", {
+        kind,
+        socketId: socket.id,
+      });
       try {
         //console.log(appData);
 
@@ -274,7 +338,9 @@ try {
           try {
             await toggleStream(accessToken);
           } catch (error) {
-            console.error(error);
+            logError("transport-produce.toggleStream", error, {
+              socketId: socket.id,
+            });
           }
         }
 
@@ -296,7 +362,9 @@ try {
         );
 
         if ((kind as MediaKind) === "video") {
-          console.log("Emitting new-producer to producer socket:", socket.id);
+          logInfo("Emitting new-producer to producer socket", {
+            socketId: socket.id,
+          });
           socket.emit("new-producer", { producerId: producer.id });
         }
 
@@ -317,7 +385,7 @@ try {
           producersExist: store.producers.length > 1 ? true : false,
         });
       } catch (error) {
-        console.error("Error in transport-produce:", error);
+        logError("transport-produce", error, { socketId: socket.id });
         callback({
           error: error instanceof Error ? error.message : "Unknown error",
         });
@@ -335,7 +403,7 @@ try {
 
         await consumerTransport.connect({ dtlsParameters });
       } catch (error) {
-        console.error("Error connecting consumer transport:", error);
+        logError("transport-recv-connect", error, { socketId: socket.id });
       }
     },
   );
@@ -356,7 +424,7 @@ try {
 
       notifyUsersList(currentServerId, connections);
     } catch (error) {
-      console.error(error);
+      logError("stopProducer", error, { socketId: socket.id, producerId });
     }
   });
 
@@ -390,7 +458,7 @@ try {
       try {
         await muteUser(userId, accessToken);
       } catch (error) {
-        console.error("Error calling muteUser API:", error);
+        logError("muteUser.api", error, { socketId: socket.id, userId });
       }
 
       callback({
@@ -400,7 +468,7 @@ try {
         accessToken,
       });
     } catch (error) {
-      console.error("Error muting user:", error);
+      logError("muteUser", error, { socketId: socket.id, userId });
       callback({
         success: false,
         message: error instanceof Error ? error.message : "Unknown error",
@@ -429,7 +497,7 @@ try {
       try {
         await muteUser(userId, accessToken);
       } catch (error) {
-        console.error("Error calling muteUser API:", error);
+        logError("unmuteUser.api", error, { socketId: socket.id, userId });
       }
 
       callback({
@@ -439,7 +507,7 @@ try {
         accessToken,
       });
     } catch (error) {
-      console.error("Error unmuting user:", error);
+      logError("unmuteUser", error, { socketId: socket.id, userId });
       callback({
         success: false,
         message: error instanceof Error ? error.message : "Unknown error",
