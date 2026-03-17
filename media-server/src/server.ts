@@ -69,7 +69,7 @@ const connections = io.of("/mediasoup");
 })();
 
 const adminToken = process.env.ADMIN_TOKEN;
-const requireAdmin = (req: express.Request, res: express.Response, next) => {
+const requireAdmin = (req: express.Request, res: express.Response, next: () => any) => {
   if (!adminToken) {
     return res.status(501).json({ error: "ADMIN_TOKEN not set" });
   }
@@ -101,7 +101,7 @@ app.get("/metrics", async (req, res) => {
 });
 
 app.use(
-  (err: Error, req: express.Request, res: express.Response, _next) => {
+  (err: Error, req: express.Request, res: express.Response, _next: any) => {
     logError("express", err, { path: req.path });
     res.status(500).json({ error: "Internal Server Error" });
   },
