@@ -193,24 +193,26 @@ export const createSendTransport = async (
           );
         });
 
-        const audioProducer = await producerTransport.produce({
-          track: audioTrack ?? undefined,
-          codecOptions: {
-            opusDtx: true,
-            opusFec: true,
-            opusStereo: false,
-            opusMaxPlaybackRate: 16000,
-            opusMaxAverageBitrate: 20000,
-          },
-        });
+        if (audioTrack) {
+          const audioProducer = await producerTransport.produce({
+            track: audioTrack,
+            codecOptions: {
+              opusDtx: true,
+              opusFec: true,
+              opusStereo: false,
+              opusMaxPlaybackRate: 16000,
+              opusMaxAverageBitrate: 20000,
+            },
+          });
 
-        setAudioProducer(audioProducer);
+          setAudioProducer(audioProducer);
+
+          audioProducer.on('trackended', () => {
+            setAudioProducer(null);
+          });
+        }
 
         resolve(producerTransport);
-
-        audioProducer.on('trackended', () => {
-          setAudioProducer(null);
-        });
       },
     );
   });
