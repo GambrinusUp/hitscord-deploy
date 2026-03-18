@@ -242,6 +242,7 @@ connections.on("connection", async (socket) => {
           );
 
           store.addPeer(socket, roomName, userName, userId);
+          notifyUsersList(currentServerId, connections);
 
           if (router1) {
             const rtpCapabilities = router1.rtpCapabilities;
