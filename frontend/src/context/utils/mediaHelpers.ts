@@ -182,7 +182,6 @@ export const createSendTransport = async (
             },
             ({ id }: { id: string }) => {
               callback({ id });
-
               getProducers(
                 socket,
                 device,
@@ -194,26 +193,24 @@ export const createSendTransport = async (
           );
         });
 
-        if (audioTrack) {
-          const audioProducer = await producerTransport.produce({
-            track: audioTrack,
-            codecOptions: {
-              opusDtx: true,
-              opusFec: true,
-              opusStereo: false,
-              opusMaxPlaybackRate: 16000,
-              opusMaxAverageBitrate: 20000,
-            },
-          });
+        const audioProducer = await producerTransport.produce({
+          track: audioTrack ?? undefined,
+          codecOptions: {
+            opusDtx: true,
+            opusFec: true,
+            opusStereo: false,
+            opusMaxPlaybackRate: 16000,
+            opusMaxAverageBitrate: 20000,
+          },
+        });
 
-          setAudioProducer(audioProducer);
-
-          audioProducer.on('trackended', () => {
-            setAudioProducer(null);
-          });
-        }
+        setAudioProducer(audioProducer);
 
         resolve(producerTransport);
+
+        audioProducer.on('trackended', () => {
+          setAudioProducer(null);
+        });
       },
     );
   });
