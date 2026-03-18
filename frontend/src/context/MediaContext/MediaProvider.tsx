@@ -201,7 +201,7 @@ export const MediaProvider = (props: React.PropsWithChildren) => {
         nextMicAudioState = await getLocalAudioStream(nextSettings);
 
         await audioProducer.replaceTrack({
-          track: nextMicAudioState.processedTrack,
+          track: nextMicAudioState?.processedTrack ?? null,
         });
 
         setMicAudioState(nextMicAudioState);
