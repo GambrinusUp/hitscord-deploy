@@ -11,4 +11,5 @@ export {
   type MicSettings,
   joinRoom,
   resetConsumerTransportState,
+  getProducers
 } from './utils';

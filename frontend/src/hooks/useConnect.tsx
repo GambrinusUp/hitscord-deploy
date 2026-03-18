@@ -6,6 +6,7 @@ import {
   createDevice,
   createSendTransport,
   getLocalAudioStream,
+  getProducers,
   joinRoom,
   type MicAudioState,
 } from '~/context';
@@ -75,6 +76,17 @@ export const useConnect = () => {
       );
 
       setProducerTransport(producerTransport);
+
+      if (!audioTrack) {
+        getProducers(
+          socket,
+          device,
+          addConsumer,
+          consumerTransport,
+          setConsumerTransport,
+        );
+      }
+
       setIsMuted(isMuted);
       setIsUserMute(muteStatus === MuteStatus.Muted);
       setMicAudioState(micAudioState);
