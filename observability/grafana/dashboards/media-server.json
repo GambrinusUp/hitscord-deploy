@@ -70,6 +70,31 @@
         { "expr": "hitscord_media_rooms", "refId": "A" },
         { "expr": "hitscord_media_peers", "refId": "B" }
       ]
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU (seconds per second)",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(process_cpu_user_seconds_total[1m])",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(process_cpu_system_seconds_total[1m])",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory (bytes)",
+      "gridPos": { "x": 12, "y": 20, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "process_resident_memory_bytes", "refId": "A" },
+        { "expr": "nodejs_heap_used_bytes", "refId": "B" },
+        { "expr": "nodejs_heap_size_total_bytes", "refId": "C" }
+      ]
     }
   ]
 }

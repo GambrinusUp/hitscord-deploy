@@ -40,11 +40,11 @@ export const increment = (name: string, by = 1) => {
 };
 
 export const logInfo = (message: string, meta?: Record<string, unknown>) => {
-  console.log(message, meta || "");
+  console.log("level=info", message, meta || "");
 };
 
 export const logWarn = (message: string, meta?: Record<string, unknown>) => {
-  console.warn(message, meta || "");
+  console.warn("level=warn", message, meta || "");
 };
 
 export const logError = (
@@ -67,7 +67,7 @@ export const logError = (
     errorBuffer.pop();
   }
 
-  console.error(`[${scope}] ${normalized.message}`, meta || "");
+  console.error("level=error", `[${scope}] ${normalized.message}`, meta || "");
   if (normalized.stack) {
     console.error(normalized.stack);
   }
