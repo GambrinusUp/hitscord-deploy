@@ -49,7 +49,7 @@ export const calculateMicGain = (settings: MicSettings) => {
 
 export const getLocalAudioStream = async (
   settings?: MicSettings,
-): Promise<MicAudioState> => {
+): Promise<MicAudioState | null> => {
   const micSettings = settings ?? getDefaultMicSettings();
   const buildConstraints = (
     inputDeviceId: string | null,
@@ -63,18 +63,26 @@ export const getLocalAudioStream = async (
   });
 
   let stream: MediaStream;
+
   try {
     stream = await navigator.mediaDevices.getUserMedia({
       audio: buildConstraints(micSettings.inputDeviceId),
     });
-  } catch (error) {
-    if (!micSettings.inputDeviceId) {
+  } catch (_error) {
+    /*if (!micSettings.inputDeviceId) {
       throw error;
     }
 
     stream = await navigator.mediaDevices.getUserMedia({
       audio: buildConstraints(null),
-    });
+    });*/
+     try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: buildConstraints(null),
+      });
+    } catch {
+      return null;
+    }
   }
 
   const rawTrack = stream.getAudioTracks()[0];
@@ -137,7 +145,7 @@ export const createDevice = async (rtpCapabilities: RtpCapabilities) => {
 
 export const createSendTransport = async (
   device: Device,
-  audioTrack: MediaStreamTrack,
+  audioTrack: MediaStreamTrack | null,
   setAudioProducer: React.Dispatch<React.SetStateAction<Producer | null>>,
   addConsumer: (consumer: Consumer) => void,
   consumerTransport: Transport | null,
@@ -174,6 +182,7 @@ export const createSendTransport = async (
             },
             ({ id }: { id: string }) => {
               callback({ id });
+
               getProducers(
                 socket,
                 device,
@@ -185,24 +194,26 @@ export const createSendTransport = async (
           );
         });
 
-        const audioProducer = await producerTransport.produce({
-          track: audioTrack,
-          codecOptions: {
-            opusDtx: true,
-            opusFec: true,
-            opusStereo: false,
-            opusMaxPlaybackRate: 16000,
-            opusMaxAverageBitrate: 20000,
-          },
-        });
+        if (audioTrack) {
+          const audioProducer = await producerTransport.produce({
+            track: audioTrack,
+            codecOptions: {
+              opusDtx: true,
+              opusFec: true,
+              opusStereo: false,
+              opusMaxPlaybackRate: 16000,
+              opusMaxAverageBitrate: 20000,
+            },
+          });
 
-        setAudioProducer(audioProducer);
+          setAudioProducer(audioProducer);
+
+          audioProducer.on('trackended', () => {
+            setAudioProducer(null);
+          });
+        }
 
         resolve(producerTransport);
-
-        audioProducer.on('trackended', () => {
-          setAudioProducer(null);
-        });
       },
     );
   });

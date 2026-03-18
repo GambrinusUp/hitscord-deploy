@@ -45,7 +45,7 @@ export const useConnect = () => {
       }
 
       micAudioState = await getLocalAudioStream(micSettings);
-      const audioTrack = micAudioState.processedTrack;
+      const audioTrack = micAudioState?.processedTrack ?? null;
 
       const { rtpCapabilities, muteStatus } = await joinRoom(
         roomName,
@@ -58,7 +58,7 @@ export const useConnect = () => {
       const isMuted =
         muteStatus === MuteStatus.SelfMuted || muteStatus === MuteStatus.Muted;
 
-      if (isMuted) {
+      if (audioTrack && isMuted) {
         audioTrack.enabled = false;
       }
 
