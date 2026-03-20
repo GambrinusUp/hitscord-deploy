@@ -93,6 +93,7 @@ export const MediaProvider = (props: React.PropsWithChildren) => {
   );
   const micMonitorAudioRef = useRef<HTMLAudioElement | null>(null);
   const micMonitorStreamRef = useRef<MediaStream | null>(null);
+  const micMonitorRequestRef = useRef<Promise<void> | null>(null);
   const dispatch = useAppDispatch();
   const { currentVoiceChannelId } = useAppSelector(
     (state) => state.testServerStore,
@@ -357,16 +358,44 @@ export const MediaProvider = (props: React.PropsWithChildren) => {
     }
   };
 
+  const ensureMicForMonitoring = () => {
+    if (micAudioStateRef.current) return;
+
+    if (micMonitorRequestRef.current) return;
+
+    micMonitorRequestRef.current = (async () => {
+      try {
+        const nextMicAudioState = await getLocalAudioStream(
+          micSettingsRef.current,
+        );
+
+        if (nextMicAudioState) {
+          setMicAudioState(nextMicAudioState);
+        }
+      } catch (error) {
+        console.error('Failed to get mic stream for monitoring:', error);
+      } finally {
+        micMonitorRequestRef.current = null;
+      }
+    })();
+  };
+
   const syncMicMonitoring = () => {
     const settings = micSettingsRef.current;
     const micAudioState = micAudioStateRef.current;
 
-    if (!settings.monitoringEnabled || !micAudioState) {
+    if (!settings.monitoringEnabled) {
       if (micMonitorAudioRef.current) {
         micMonitorAudioRef.current.pause();
         micMonitorAudioRef.current.srcObject = null;
       }
       micMonitorStreamRef.current = null;
+
+      return;
+    }
+
+    if (!micAudioState) {
+      ensureMicForMonitoring();
 
       return;
     }
@@ -405,6 +434,16 @@ export const MediaProvider = (props: React.PropsWithChildren) => {
       micMonitorStreamRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (isConnected) return;
+
+    if (micSettings.monitoringEnabled) return;
+
+    if (!micAudioStateRef.current) return;
+
+    clearMicAudioState();
+  }, [clearMicAudioState, isConnected, micSettings.monitoringEnabled]);
 
   return (
     <MediaContext.Provider
