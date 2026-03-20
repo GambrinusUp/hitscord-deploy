@@ -1,4 +1,4 @@
-import {
+﻿import {
   Stack,
   Text,
   Avatar,
@@ -307,6 +307,37 @@ export const ControlPanel = () => {
               onChange={(value) =>
                 setMicSettings((prev) => ({ ...prev, gainDb: value }))
               }
+            />
+          </Stack>
+          <Switch
+            label="Прослушивание микрофона"
+            checked={micSettings.monitoringEnabled}
+            onChange={(event) =>
+              setMicSettings((prev) => ({
+                ...prev,
+                monitoringEnabled: event.currentTarget.checked,
+              }))
+            }
+          />
+          <Stack gap={6}>
+            <Group justify="space-between">
+              <Text size="sm">Громкость прослушивания</Text>
+              <Text size="sm" c="dimmed">
+                {micSettings.monitoringVolume}%
+              </Text>
+            </Group>
+            <Slider
+              min={0}
+              max={100}
+              step={1}
+              value={micSettings.monitoringVolume}
+              onChange={(value) =>
+                setMicSettings((prev) => ({
+                  ...prev,
+                  monitoringVolume: value,
+                }))
+              }
+              disabled={!micSettings.monitoringEnabled}
             />
           </Stack>
           <Switch

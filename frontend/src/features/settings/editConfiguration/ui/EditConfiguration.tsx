@@ -1,4 +1,4 @@
-import {
+﻿import {
   Divider,
   Group,
   Paper,
@@ -144,6 +144,57 @@ export const EditConfiguration = () => {
               onChange={(value) =>
                 setMicSettings((prev) => ({ ...prev, gainDb: value }))
               }
+              styles={{
+                track: {
+                  backgroundColor: 'var(--color-white-05)',
+                },
+                bar: {
+                  backgroundColor: 'var(--color-primary)',
+                },
+                thumb: {
+                  borderColor: 'var(--color-primary)',
+                },
+              }}
+            />
+          </Stack>
+          <Switch
+            label="Прослушивание микрофона"
+            checked={micSettings.monitoringEnabled}
+            onChange={(event) =>
+              setMicSettings((prev) => ({
+                ...prev,
+                monitoringEnabled: event.currentTarget.checked,
+              }))
+            }
+            styles={{
+              track: {
+                backgroundColor: micSettings.monitoringEnabled
+                  ? 'var(--color-primary)'
+                  : 'var(--color-white-05)',
+              },
+            }}
+          />
+          <Stack gap={6}>
+            <Group justify="space-between">
+              <Text size="sm" c="var(--color-white)">
+                Громкость прослушивания
+              </Text>
+              <Text size="sm" c="var(--color-white)">
+                {micSettings.monitoringVolume}%
+              </Text>
+            </Group>
+            <Slider
+              min={0}
+              max={100}
+              step={1}
+              value={micSettings.monitoringVolume}
+              onChange={(value) =>
+                setMicSettings((prev) => ({
+                  ...prev,
+                  monitoringVolume: value,
+                }))
+              }
+              disabled={!micSettings.monitoringEnabled}
               styles={{
                 track: {
                   backgroundColor: 'var(--color-white-05)',

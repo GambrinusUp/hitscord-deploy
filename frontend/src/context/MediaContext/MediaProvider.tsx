@@ -87,6 +87,12 @@ export const MediaProvider = (props: React.PropsWithChildren) => {
       : null;
   });
   const micAudioStateRef = useRef<MicAudioState | null>(null);
+  const micSettingsRef = useRef<MicSettings>(micSettings);
+  const selectedOutputDeviceIdRef = useRef<string | null>(
+    selectedOutputDeviceId,
+  );
+  const micMonitorAudioRef = useRef<HTMLAudioElement | null>(null);
+  const micMonitorStreamRef = useRef<MediaStream | null>(null);
   const dispatch = useAppDispatch();
   const { currentVoiceChannelId } = useAppSelector(
     (state) => state.testServerStore,
@@ -153,6 +159,7 @@ export const MediaProvider = (props: React.PropsWithChildren) => {
     }
 
     micAudioStateRef.current = state;
+    syncMicMonitoring();
   }, []);
 
   const clearMicAudioState = useCallback(() => {
@@ -160,6 +167,7 @@ export const MediaProvider = (props: React.PropsWithChildren) => {
 
     stopMicAudioState(micAudioStateRef.current);
     micAudioStateRef.current = null;
+    syncMicMonitoring();
   }, []);
 
   const refreshAudioDevices = useCallback(async () => {
@@ -307,6 +315,12 @@ export const MediaProvider = (props: React.PropsWithChildren) => {
   }, [micSettings]);
 
   useEffect(() => {
+    micSettingsRef.current = micSettings;
+    selectedOutputDeviceIdRef.current = selectedOutputDeviceId;
+    syncMicMonitoring();
+  }, [micSettings, selectedOutputDeviceId]);
+
+  useEffect(() => {
     refreshAudioDevices();
 
     if (!navigator.mediaDevices?.addEventListener) return;
@@ -323,6 +337,74 @@ export const MediaProvider = (props: React.PropsWithChildren) => {
       );
     };
   }, [refreshAudioDevices]);
+
+  const applyOutputDevice = async (
+    audioElement: HTMLAudioElement | null,
+    outputDeviceId: string | null,
+  ) => {
+    if (!audioElement) return;
+
+    const outputElement = audioElement as HTMLAudioElement & {
+      setSinkId?: (sinkId: string) => Promise<void>;
+    };
+
+    if (typeof outputElement.setSinkId !== 'function') return;
+
+    try {
+      await outputElement.setSinkId(outputDeviceId ?? '');
+    } catch (error) {
+      console.error('Failed to set mic monitor output device:', error);
+    }
+  };
+
+  const syncMicMonitoring = () => {
+    const settings = micSettingsRef.current;
+    const micAudioState = micAudioStateRef.current;
+
+    if (!settings.monitoringEnabled || !micAudioState) {
+      if (micMonitorAudioRef.current) {
+        micMonitorAudioRef.current.pause();
+        micMonitorAudioRef.current.srcObject = null;
+      }
+      micMonitorStreamRef.current = null;
+
+      return;
+    }
+
+    if (!micMonitorAudioRef.current) {
+      micMonitorAudioRef.current = document.createElement('audio');
+      micMonitorAudioRef.current.autoplay = true;
+      micMonitorAudioRef.current.setAttribute('playsinline', 'true');
+      document.body.appendChild(micMonitorAudioRef.current);
+    }
+
+    const stream = new MediaStream([micAudioState.processedTrack]);
+    micMonitorStreamRef.current = stream;
+    micMonitorAudioRef.current.srcObject = stream;
+    micMonitorAudioRef.current.volume = Math.max(
+      0,
+      Math.min(1, settings.monitoringVolume / 100),
+    );
+    applyOutputDevice(
+      micMonitorAudioRef.current,
+      selectedOutputDeviceIdRef.current,
+    );
+    micMonitorAudioRef.current
+      .play()
+      .catch((e) => console.error('Mic monitor play error:', e));
+  };
+
+  useEffect(() => {
+    return () => {
+      if (micMonitorAudioRef.current) {
+        micMonitorAudioRef.current.pause();
+        micMonitorAudioRef.current.srcObject = null;
+        micMonitorAudioRef.current.remove();
+        micMonitorAudioRef.current = null;
+      }
+      micMonitorStreamRef.current = null;
+    };
+  }, []);
 
   return (
     <MediaContext.Provider
