@@ -319,27 +319,6 @@ export const ControlPanel = () => {
               }))
             }
           />
-          <Stack gap={6}>
-            <Group justify="space-between">
-              <Text size="sm">Громкость прослушивания</Text>
-              <Text size="sm" c="dimmed">
-                {micSettings.monitoringVolume}%
-              </Text>
-            </Group>
-            <Slider
-              min={0}
-              max={100}
-              step={1}
-              value={micSettings.monitoringVolume}
-              onChange={(value) =>
-                setMicSettings((prev) => ({
-                  ...prev,
-                  monitoringVolume: value,
-                }))
-              }
-              disabled={!micSettings.monitoringEnabled}
-            />
-          </Stack>
           <Switch
             label="Шумоподавление"
             checked={micSettings.noiseSuppression}

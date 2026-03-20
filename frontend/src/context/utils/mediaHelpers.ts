@@ -21,7 +21,6 @@ export type MicSettings = {
   echoCancellation: boolean;
   autoGainControl: boolean;
   monitoringEnabled: boolean;
-  monitoringVolume: number;
   inputDeviceId: string | null;
 };
 
@@ -39,7 +38,6 @@ export const getDefaultMicSettings = (): MicSettings => ({
   echoCancellation: true,
   autoGainControl: false,
   monitoringEnabled: false,
-  monitoringVolume: 40,
   inputDeviceId: null,
 });
 

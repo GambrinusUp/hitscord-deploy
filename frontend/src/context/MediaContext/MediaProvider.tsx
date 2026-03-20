@@ -410,10 +410,7 @@ export const MediaProvider = (props: React.PropsWithChildren) => {
     const stream = new MediaStream([micAudioState.processedTrack]);
     micMonitorStreamRef.current = stream;
     micMonitorAudioRef.current.srcObject = stream;
-    micMonitorAudioRef.current.volume = Math.max(
-      0,
-      Math.min(1, settings.monitoringVolume / 100),
-    );
+    micMonitorAudioRef.current.volume = 1;
     applyOutputDevice(
       micMonitorAudioRef.current,
       selectedOutputDeviceIdRef.current,
