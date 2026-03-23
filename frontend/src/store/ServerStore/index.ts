@@ -56,6 +56,8 @@ export {
   changeUserMuteStatusWs,
   setCurrentVoiceChannelName,
   setCurrentVoiceChannelServerId,
+  addReactionWs,
+  removeReactionWs,
 } from './ServerStore.reducer';
 
 export {

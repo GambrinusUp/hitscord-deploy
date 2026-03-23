@@ -48,6 +48,7 @@ import {
 
 import { MAX_MESSAGE_NUMBER } from '~/constants';
 import { FileResponse } from '~/entities/files';
+import { ChannelMessageReactionFull } from '~/entities/reactions';
 import { ServerTypeEnum } from '~/entities/servers';
 import { LoadingState } from '~/shared';
 import { UpdateRole } from '~/store/RolesStore/RolesStore.types';
@@ -730,6 +731,65 @@ const testServerSlice = createSlice({
         }
       }
     },
+    addReactionWs: (
+      state,
+      action: PayloadAction<ChannelMessageReactionFull>,
+    ) => {
+      const { id, channelId, messageId, authorId, createdAt, reactionCode } =
+        action.payload;
+
+      if (
+        state.currentChannelId === channelId ||
+        state.currentNotificationChannelId === channelId
+      ) {
+        const messageIndex = state.messages.findIndex(
+          (message) => message.id === messageId,
+        );
+
+        if (messageIndex > -1) {
+          const message = state.messages[messageIndex];
+
+          state.messages[messageIndex] = {
+            ...message,
+            reactions: [
+              ...message.reactions,
+              {
+                id,
+                authorId,
+                createdAt,
+                reactionCode,
+              },
+            ],
+          };
+        }
+      }
+    },
+    removeReactionWs: (
+      state,
+      action: PayloadAction<ChannelMessageReactionFull>,
+    ) => {
+      const { id, channelId, messageId } = action.payload;
+
+      if (
+        state.currentChannelId === channelId ||
+        state.currentNotificationChannelId === channelId
+      ) {
+        const messageIndex = state.messages.findIndex(
+          (message) => message.id === messageId,
+        );
+
+        if (messageIndex > -1) {
+          const message = state.messages[messageIndex];
+
+          state.messages[messageIndex] = {
+            ...message,
+            reactions: [...message.reactions].filter(
+              (reaction) => reaction.id !== id,
+            ),
+          };
+        }
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -1342,6 +1402,8 @@ export const {
   changeUserMuteStatusWs,
   setCurrentVoiceChannelName,
   setCurrentVoiceChannelServerId,
+  addReactionWs,
+  removeReactionWs,
 } = testServerSlice.actions;
 
 export const ServerReducer = testServerSlice.reducer;

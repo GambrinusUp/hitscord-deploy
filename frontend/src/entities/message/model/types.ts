@@ -1,4 +1,5 @@
 import { MessageFile } from '~/entities/chat';
+import { MessageReaction } from '~/entities/reactions';
 import { NestedChannel, ReplyMessage } from '~/store/ServerStore';
 
 export enum MessageType {
@@ -8,6 +9,7 @@ export enum MessageType {
 }
 
 export interface MessageItemProps {
+  messageId: number;
   type: MessageType;
   isOwnMessage: boolean;
   content: string;
@@ -19,6 +21,7 @@ export interface MessageItemProps {
   modifiedAt?: string | null;
   files: MessageFile[] | null | undefined;
   nestedChannel: NestedChannel | null | undefined;
+  reactions: MessageReaction[];
   onReplyMessage: () => void;
   onEditMessage?: () => void;
   onReplyPreviewClick?: (replyMessageId: number) => void;
@@ -26,4 +29,10 @@ export interface MessageItemProps {
     onEdit: () => void;
     isOwnMessage: boolean;
   }>;
+}
+
+export interface EmojiInfo {
+  count: number;
+  isAuthor: boolean;
+  reactionId: string | null;
 }

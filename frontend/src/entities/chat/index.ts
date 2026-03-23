@@ -32,4 +32,6 @@ export {
   addChat,
   updateChatIcon,
   updateChatVoteWs,
+  addReactionChatWs,
+  removeReactionChatWs,
 } from './model/slice';

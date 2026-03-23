@@ -1,5 +1,6 @@
 import { FileResponse } from '~/entities/files';
 import { SystemRole } from '~/entities/presets';
+import { MessageReaction } from '~/entities/reactions';
 import { LoadingState } from '~/shared/types';
 import { NestedChannel } from '~/store/ServerStore';
 
@@ -82,6 +83,7 @@ export interface ChatMessage {
   createdAt: string;
   replyToMessage: ReplyMessage | null;
   isTagged?: boolean;
+  reactions: MessageReaction[];
 
   text?: string | null;
   modifiedAt?: string | null;

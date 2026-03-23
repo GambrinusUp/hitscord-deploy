@@ -1,6 +1,7 @@
 import { MessageFile } from '~/entities/chat';
 import { FileResponse } from '~/entities/files';
 import { SystemRole } from '~/entities/presets';
+import { MessageReaction } from '~/entities/reactions';
 import { ServerTypeEnum } from '~/entities/servers';
 import { LoadingState } from '~/shared';
 import { RoleType } from '~/store/RolesStore';
@@ -71,6 +72,7 @@ export interface ChannelMessage {
   createdAt: string;
   replyToMessage: ReplyMessage | null;
   isTagged?: boolean;
+  reactions: MessageReaction[];
 
   text?: string | null;
   modifiedAt?: string | null;

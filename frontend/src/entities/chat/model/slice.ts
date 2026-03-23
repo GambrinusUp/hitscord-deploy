@@ -23,6 +23,7 @@ import {
 
 import { MAX_MESSAGE_NUMBER } from '~/constants';
 import { FileResponse } from '~/entities/files';
+import { ChatMessageReactionFull } from '~/entities/reactions';
 import { LoadingState } from '~/shared';
 
 const initialState: ChatsState = {
@@ -221,6 +222,59 @@ export const ChatsSlice = createSlice({
 
       if (index !== -1) {
         state.messages[index] = action.payload;
+      }
+    },
+    addReactionChatWs: (
+      state,
+      action: PayloadAction<ChatMessageReactionFull>,
+    ) => {
+      const { id, chatId, messageId, authorId, createdAt, reactionCode } =
+        action.payload;
+
+      if (state.activeChat === chatId) {
+        const messageIndex = state.messages.findIndex(
+          (message) => message.id === messageId,
+        );
+
+        if (messageIndex > -1) {
+          const message = state.messages[messageIndex];
+
+          state.messages[messageIndex] = {
+            ...message,
+            reactions: [
+              ...message.reactions,
+              {
+                id,
+                authorId,
+                createdAt,
+                reactionCode,
+              },
+            ],
+          };
+        }
+      }
+    },
+    removeReactionChatWs: (
+      state,
+      action: PayloadAction<ChatMessageReactionFull>,
+    ) => {
+      const { id, chatId, messageId } = action.payload;
+
+      if (state.activeChat === chatId) {
+        const messageIndex = state.messages.findIndex(
+          (message) => message.id === messageId,
+        );
+
+        if (messageIndex > -1) {
+          const message = state.messages[messageIndex];
+
+          state.messages[messageIndex] = {
+            ...message,
+            reactions: [...message.reactions].filter(
+              (reaction) => reaction.id !== id,
+            ),
+          };
+        }
       }
     },
   },
@@ -484,6 +538,8 @@ export const {
   addChat,
   updateChatIcon,
   updateChatVoteWs,
+  addReactionChatWs,
+  removeReactionChatWs,
 } = ChatsSlice.actions;
 
 export const chatsReducer = ChatsSlice.reducer;

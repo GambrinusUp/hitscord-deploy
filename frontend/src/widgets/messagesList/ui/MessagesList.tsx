@@ -60,6 +60,7 @@ export const MessagesList = ({
           >
             {message.messageType === ServerMessageType.Classic ? (
               <MessageItem
+                messageId={message.id}
                 content={message.text!}
                 replyMessage={message.replyToMessage}
                 isOwnMessage={user.id === message.authorId}
@@ -70,6 +71,7 @@ export const MessagesList = ({
                 isTagged={message.isTagged}
                 files={message.files}
                 nestedChannel={message.nestedChannel}
+                reactions={message.reactions}
                 MessageActions={(props) => (
                   <MessageActions
                     {...props}
