@@ -68,15 +68,29 @@ export const MessageItem = ({
   const pickerRef = useRef<HTMLDivElement | null>(null);
   const menuDropdownRef = useRef<HTMLDivElement | null>(null);
   const pickerContainerRef = useRef<HTMLDivElement | null>(null);
+  const reactionMenuDropdownRef = useRef<HTMLDivElement | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [menuOpened, setMenuOpened] = useState(false);
+  const [reactionMenuOpened, setReactionMenuOpened] = useState(false);
+  const [selectedReactionEmoji, setSelectedReactionEmoji] = useState<
+    string | null
+  >(null);
   const [menuAnchor, setMenuAnchor] = useState<'edge' | 'cursor'>('edge');
   const [pickerAnchor, setPickerAnchor] = useState<'edge' | 'cursor'>('cursor');
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [reactionMenuPosition, setReactionMenuPosition] = useState({
+    x: 0,
+    y: 0,
+  });
   const [menuPositionClamped, setMenuPositionClamped] = useState({
     x: 0,
     y: 0,
   });
+  const [reactionMenuPositionClamped, setReactionMenuPositionClamped] =
+    useState({
+      x: 0,
+      y: 0,
+    });
   const [pickerPositionClamped, setPickerPositionClamped] = useState({
     x: 0,
     y: 0,
@@ -216,12 +230,26 @@ export const MessageItem = ({
       setPickerPositionClamped(next);
     };
 
+    const updateReactionMenuPosition = () => {
+      if (!reactionMenuOpened || !reactionMenuDropdownRef.current) return;
+      const rect = reactionMenuDropdownRef.current.getBoundingClientRect();
+      const next = clampToViewport(
+        reactionMenuPosition.x,
+        reactionMenuPosition.y,
+        rect.width,
+        rect.height,
+        false,
+      );
+      setReactionMenuPositionClamped(next);
+    };
+
     const updateAll = () => {
       updateMenuPosition();
       updatePickerPosition();
+      updateReactionMenuPosition();
     };
 
-    if (menuOpened || showEmojiPicker) {
+    if (menuOpened || showEmojiPicker || reactionMenuOpened) {
       requestAnimationFrame(updateAll);
       const handler = () => requestAnimationFrame(updateAll);
       window.addEventListener('resize', handler);
@@ -235,8 +263,11 @@ export const MessageItem = ({
   }, [
     menuOpened,
     showEmojiPicker,
+    reactionMenuOpened,
     menuPosition.x,
     menuPosition.y,
+    reactionMenuPosition.x,
+    reactionMenuPosition.y,
     isOwnMessage,
     menuAnchor,
     pickerAnchor,
@@ -259,6 +290,27 @@ export const MessageItem = ({
       window.removeEventListener('mousedown', handler);
     };
   }, [showEmojiPicker]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!reactionMenuDropdownRef.current) return;
+
+      if (
+        !reactionMenuDropdownRef.current.contains(e.target as Node) &&
+        !(e.target as HTMLElement).closest('[data-reaction-menu-trigger]')
+      ) {
+        setReactionMenuOpened(false);
+      }
+    };
+
+    if (reactionMenuOpened) {
+      window.addEventListener('mousedown', handler);
+    }
+
+    return () => {
+      window.removeEventListener('mousedown', handler);
+    };
+  }, [reactionMenuOpened]);
 
   useEffect(() => {
     const newEmojiMap = new Map<string, EmojiInfo>();
@@ -398,7 +450,8 @@ export const MessageItem = ({
               <Menu.Item
                 leftSection={<SmilePlus size={12} />}
                 onClick={() => {
-                  const nextAnchor = menuAnchor === 'cursor' ? 'cursor' : 'edge';
+                  const nextAnchor =
+                    menuAnchor === 'cursor' ? 'cursor' : 'edge';
                   setPickerAnchor(nextAnchor);
                   setPickerPositionClamped({
                     x: menuPosition.x,
@@ -575,12 +628,13 @@ export const MessageItem = ({
               {Array.from(emojiMap.entries()).map(
                 ([emoji, { count, reactionId, isAuthor }]) => (
                   <Button
-                    key={reactionId}
+                    key={emoji}
                     variant={isAuthor ? 'light' : 'subtle'}
                     color={isAuthor ? 'blue' : 'gray'}
                     radius="xl"
                     size="xs"
                     px={8}
+                    data-reaction-menu-trigger
                     style={{
                       height: 28,
                       minHeight: 28,
@@ -596,6 +650,15 @@ export const MessageItem = ({
                     onClick={() =>
                       handleReactionClick(reactionId, isAuthor, emoji)
                     }
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSelectedReactionEmoji(emoji);
+                      const next = { x: e.clientX, y: e.clientY };
+                      setReactionMenuPosition(next);
+                      setReactionMenuPositionClamped(next);
+                      setReactionMenuOpened(true);
+                    }}
                   >
                     <div
                       style={{ display: 'flex', alignItems: 'center', gap: 4 }}
@@ -636,6 +699,38 @@ export const MessageItem = ({
               />
             </div>
           </div>
+        </Portal>
+      )}
+      {reactionMenuOpened && selectedReactionEmoji && (
+        <Portal>
+          <Menu opened={reactionMenuOpened} onChange={setReactionMenuOpened}>
+            <Menu.Dropdown
+              ref={reactionMenuDropdownRef}
+              style={{
+                position: 'fixed',
+                top: reactionMenuPositionClamped.y,
+                left: reactionMenuPositionClamped.x,
+                maxHeight: '300px',
+                overflowY: 'auto',
+              }}
+            >
+              {reactions
+                .filter(
+                  (reaction) => reaction.reactionCode === selectedReactionEmoji,
+                )
+                .map((reaction) => (
+                  <Menu.Item
+                    key={reaction.id}
+                    onClick={(e) => {
+                      e.preventDefault();
+                    }}
+                    style={{ cursor: 'default', pointerEvents: 'none' }}
+                  >
+                    {getUsername(reaction.authorId)}
+                  </Menu.Item>
+                ))}
+            </Menu.Dropdown>
+          </Menu>
         </Portal>
       )}
     </>
