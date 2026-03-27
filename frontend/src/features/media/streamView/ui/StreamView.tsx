@@ -33,6 +33,13 @@ export const StreamView = () => {
   const currentRoom = rooms.find(
     (room) => room.roomName === currentVoiceChannelId,
   );
+  const getIsStreamingOrCameraEnabled = (
+    producers: Array<{ source?: string }>,
+  ) =>
+    producers.some(
+      (producer) =>
+        producer.source === 'screen-video' || producer.source === 'camera',
+    );
   const selectedUserData = selectedUserId
     ? currentRoom?.users[selectedUserId]
     : null;
@@ -140,7 +147,22 @@ export const StreamView = () => {
             />
             <Panel>
               {currentRoom &&
-                Object.entries(currentRoom.users).map(
+                Object.entries(currentRoom.users)
+                  .sort(([, userA], [, userB]) => {
+                    const aPriority = getIsStreamingOrCameraEnabled(
+                      userA.producers,
+                    )
+                      ? 1
+                      : 0;
+                    const bPriority = getIsStreamingOrCameraEnabled(
+                      userB.producers,
+                    )
+                      ? 1
+                      : 0;
+
+                    return bPriority - aPriority;
+                  })
+                  .map(
                   ([socketId, { userName, userId, producers }]) => {
                     const isStreaming = !!producers.find(
                       (producer) => producer.source === 'screen-video',

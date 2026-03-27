@@ -17,7 +17,6 @@ export const EditChannelName = ({
   channelId,
   loading,
   setLoading,
-  onClose,
 }: EditChannelNameProps) => {
   const dispatch = useAppDispatch();
   const { showSuccess } = useNotification();
@@ -35,7 +34,6 @@ export const EditChannelName = ({
     if (result.meta.requestStatus === 'fulfilled') {
       setLoading(false);
       showSuccess('Название канала успешно изменилось');
-      onClose();
     }
   };
 

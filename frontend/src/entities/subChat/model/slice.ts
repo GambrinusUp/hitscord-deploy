@@ -5,6 +5,7 @@ import { SUB_CHAT_SLICE_NAME } from './const';
 import { GetSubChatMessages, SubChatInfo, SubChatState } from './types';
 
 import { MAX_MESSAGE_NUMBER } from '~/constants';
+import { ChannelMessageReactionFull } from '~/entities/reactions';
 import { LoadingState } from '~/shared';
 import { ChannelMessage } from '~/store/ServerStore';
 
@@ -70,6 +71,59 @@ export const SubChatSlice = createSlice({
 
       if (index !== -1) {
         state.messages[index] = action.payload;
+      }
+    },
+    addReactionSubWs: (
+      state,
+      action: PayloadAction<ChannelMessageReactionFull>,
+    ) => {
+      const { id, channelId, messageId, authorId, createdAt, reactionCode } =
+        action.payload;
+
+      if (state.currentSubChatId === channelId) {
+        const messageIndex = state.messages.findIndex(
+          (message) => message.id === messageId,
+        );
+
+        if (messageIndex > -1) {
+          const message = state.messages[messageIndex];
+
+          state.messages[messageIndex] = {
+            ...message,
+            reactions: [
+              ...message.reactions,
+              {
+                id,
+                authorId,
+                createdAt,
+                reactionCode,
+              },
+            ],
+          };
+        }
+      }
+    },
+    removeReactionSubWs: (
+      state,
+      action: PayloadAction<ChannelMessageReactionFull>,
+    ) => {
+      const { id, channelId, messageId } = action.payload;
+
+      if (state.currentSubChatId === channelId) {
+        const messageIndex = state.messages.findIndex(
+          (message) => message.id === messageId,
+        );
+
+        if (messageIndex > -1) {
+          const message = state.messages[messageIndex];
+
+          state.messages[messageIndex] = {
+            ...message,
+            reactions: [...message.reactions].filter(
+              (reaction) => reaction.id !== id,
+            ),
+          };
+        }
       }
     },
   },
@@ -173,6 +227,8 @@ export const {
   deleteSubChatMessageWS,
   updateSubChatVoteWs,
   setSubChatInfo,
+  addReactionSubWs,
+  removeReactionSubWs,
 } = SubChatSlice.actions;
 
 export const subChatReducer = SubChatSlice.reducer;

@@ -48,6 +48,7 @@ import {
 
 import { MAX_MESSAGE_NUMBER } from '~/constants';
 import { FileResponse } from '~/entities/files';
+import { ChannelMessageReactionFull } from '~/entities/reactions';
 import { ServerTypeEnum } from '~/entities/servers';
 import { LoadingState } from '~/shared';
 import { UpdateRole } from '~/store/RolesStore/RolesStore.types';
@@ -386,8 +387,6 @@ const testServerSlice = createSlice({
         (channel) => channel.channelId === channelId,
       );
 
-      console.log(userId, muteStatus);
-
       if (voiceChannel) {
         if (!voiceChannel.users.some((user) => user.userId === userId)) {
           voiceChannel.users.push({
@@ -722,7 +721,6 @@ const testServerSlice = createSlice({
         );
 
         if (userIndex >= 0) {
-          console.log(action.payload);
           voiceChannel.users[userIndex].muteStatus = action.payload.muteStatus;
 
           /*if (action.payload.muteStatus === MuteStatus.NotMuted) {
@@ -730,6 +728,65 @@ const testServerSlice = createSlice({
           } else {
             voiceChannel.users[userIndex].isMuted = true;
           }*/
+        }
+      }
+    },
+    addReactionWs: (
+      state,
+      action: PayloadAction<ChannelMessageReactionFull>,
+    ) => {
+      const { id, channelId, messageId, authorId, createdAt, reactionCode } =
+        action.payload;
+
+      if (
+        state.currentChannelId === channelId ||
+        state.currentNotificationChannelId === channelId
+      ) {
+        const messageIndex = state.messages.findIndex(
+          (message) => message.id === messageId,
+        );
+
+        if (messageIndex > -1) {
+          const message = state.messages[messageIndex];
+
+          state.messages[messageIndex] = {
+            ...message,
+            reactions: [
+              ...message.reactions,
+              {
+                id,
+                authorId,
+                createdAt,
+                reactionCode,
+              },
+            ],
+          };
+        }
+      }
+    },
+    removeReactionWs: (
+      state,
+      action: PayloadAction<ChannelMessageReactionFull>,
+    ) => {
+      const { id, channelId, messageId } = action.payload;
+
+      if (
+        state.currentChannelId === channelId ||
+        state.currentNotificationChannelId === channelId
+      ) {
+        const messageIndex = state.messages.findIndex(
+          (message) => message.id === messageId,
+        );
+
+        if (messageIndex > -1) {
+          const message = state.messages[messageIndex];
+
+          state.messages[messageIndex] = {
+            ...message,
+            reactions: [...message.reactions].filter(
+              (reaction) => reaction.id !== id,
+            ),
+          };
         }
       }
     },
@@ -1209,7 +1266,86 @@ const testServerSlice = createSlice({
           changeVoiceChannelSettings.fulfilled,
           changeNotificationChannelSettings.fulfilled,
         ),
-        (state) => {
+        (state, { meta }) => {
+          const { settings } = meta.arg;
+          const typeToKey: Partial<
+            Record<number, keyof typeof state.roleSettings>
+          > = {
+            0: 'canSee',
+            1: 'canJoin',
+            2: 'canWrite',
+            3: 'canWriteSub',
+            4: 'canUse',
+            5: 'notificated',
+          };
+          const settingsKey = typeToKey[settings.type];
+
+          if (!settingsKey) {
+            state.error = '';
+
+            return;
+          }
+
+          const currentSettings = state.roleSettings[settingsKey];
+          const role = state.serverData.roles.find(
+            (item) => item.id === settings.roleId,
+          );
+          const removeRoleFromSetting = (
+            key: keyof typeof state.roleSettings,
+          ) => {
+            const setting = state.roleSettings[key];
+
+            if (setting !== null) {
+              state.roleSettings[key] = setting.filter(
+                (item) => item.id !== settings.roleId,
+              );
+            }
+          };
+
+          if (currentSettings === null) {
+            state.roleSettings[settingsKey] = settings.add
+              ? role
+                ? [role]
+                : []
+              : state.serverData.roles.filter(
+                  (item) => item.id !== settings.roleId,
+                );
+          } else if (settings.add) {
+            const hasRole = currentSettings.some(
+              (item) => item.id === settings.roleId,
+            );
+
+            if (!hasRole && role) {
+              currentSettings.push(role);
+            }
+          } else {
+            state.roleSettings[settingsKey] = currentSettings.filter(
+              (item) => item.id !== settings.roleId,
+            );
+          }
+
+          if (settingsKey === 'canSee' && !settings.add) {
+            removeRoleFromSetting('canJoin');
+            removeRoleFromSetting('canWrite');
+            removeRoleFromSetting('canWriteSub');
+            removeRoleFromSetting('canUse');
+            removeRoleFromSetting('notificated');
+          }
+
+          if (settingsKey !== 'canSee' && settings.add && role) {
+            const canSeeSettings = state.roleSettings.canSee;
+
+            if (canSeeSettings !== null) {
+              const hasRoleInCanSee = canSeeSettings.some(
+                (item) => item.id === settings.roleId,
+              );
+
+              if (!hasRoleInCanSee) {
+                canSeeSettings.push(role);
+              }
+            }
+          }
+
           state.error = '';
         },
       )
@@ -1266,6 +1402,8 @@ export const {
   changeUserMuteStatusWs,
   setCurrentVoiceChannelName,
   setCurrentVoiceChannelServerId,
+  addReactionWs,
+  removeReactionWs,
 } = testServerSlice.actions;
 
 export const ServerReducer = testServerSlice.reducer;

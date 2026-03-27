@@ -35,6 +35,10 @@ export const ChannelItem = ({
   const nonReadedCount = channelData.channelData?.nonReadedCount || 0;
 
   const [isHovered, setIsHovered] = useState('');
+  const canShowEditAction = !(
+    canWorkChannels === false && channelType === ChannelType.VOICE_CHANNEL
+  );
+  const isEditActionVisible = isHovered === channelId;
 
   return (
     <Tooltip label={channelName}>
@@ -68,12 +72,18 @@ export const ChannelItem = ({
         >
           {channelName}
         </Button>
-        {isHovered === channelId &&
-          !(
-            canWorkChannels === false &&
-            channelType === ChannelType.VOICE_CHANNEL
-          ) &&
-          editAction}
+        {canShowEditAction && (
+          <Box
+            style={{
+              opacity: isEditActionVisible ? 1 : 0,
+              visibility: isEditActionVisible ? 'visible' : 'hidden',
+              pointerEvents: isEditActionVisible ? 'auto' : 'none',
+              transition: 'opacity 120ms ease',
+            }}
+          >
+            {editAction}
+          </Box>
+        )}
       </Box>
     </Tooltip>
   );

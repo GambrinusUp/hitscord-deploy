@@ -26,7 +26,11 @@ export const useCamera = () => {
 
     try {
       const cameraStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: {
+          width: { max: 960 },
+          height: { max: 540 },
+          frameRate: { max: 15 },
+        },
         audio: false,
       });
 
@@ -46,6 +50,12 @@ export const useCamera = () => {
         const cameraProducer = await producerTransport.produce({
           track: videoTrack,
           appData: { source: 'camera' },
+          encodings: [
+            {
+              maxBitrate: 300_000,
+              maxFramerate: 15,
+            },
+          ],
         });
 
         setVideoProducer(cameraProducer);

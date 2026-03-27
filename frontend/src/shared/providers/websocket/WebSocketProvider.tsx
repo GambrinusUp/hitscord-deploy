@@ -9,11 +9,13 @@ import { useMediaContext } from '~/context';
 import {
   addChat,
   addChatMessage,
+  addReactionChatWs,
   addUserInChatWs,
   changeChatReadedCount,
   deleteChatMessageWS,
   editChatMessageWS,
   readOwnChatMessage,
+  removeReactionChatWs,
   updateChatIcon,
   updateChatVoteWs,
 } from '~/entities/chat';
@@ -26,10 +28,13 @@ import {
   removeApplicationFrom,
   removeFriend,
 } from '~/entities/friendship';
+import { AddReaction, RemoveReaction } from '~/entities/reactions';
 import {
+  addReactionSubWs,
   addSubChatMessage,
   deleteSubChatMessageWS,
   editSubChatMessageWS,
+  removeReactionSubWs,
   updateSubChatVoteWs,
 } from '~/entities/subChat';
 import { Vote } from '~/entities/vote';
@@ -72,6 +77,8 @@ import {
   changeUserMuteStatusWs,
   addRoleToUserWs,
   removeRoleFromUserWs,
+  addReactionWs,
+  removeReactionWs,
 } from '~/store/ServerStore';
 
 export const WebSocketProvider = (props: React.PropsWithChildren) => {
@@ -89,6 +96,7 @@ export const WebSocketProvider = (props: React.PropsWithChildren) => {
     currentNotificationChannelId,
   } = useAppSelector((state) => state.testServerStore);
   const { activeChat } = useAppSelector((state) => state.chatsStore);
+  const { currentSubChatId } = useAppSelector((state) => state.subChatStore);
   const wsRef = useRef<WebSocket | null>(null);
   const { setIsUserMute } = useMediaContext();
 
@@ -100,6 +108,7 @@ export const WebSocketProvider = (props: React.PropsWithChildren) => {
   const currentChannelIdRef = useRef<string | null>(null);
   const currentNotificationChannelIdRef = useRef<string | null>(null);
   const currentChatIdRef = useRef<string | null>(null);
+  const currentSubChatIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     serverIdRef.current = currentServerId;
@@ -134,10 +143,18 @@ export const WebSocketProvider = (props: React.PropsWithChildren) => {
   }, [activeChat]);
 
   useEffect(() => {
+    currentSubChatIdRef.current = currentSubChatId;
+  }, [currentSubChatId]);
+
+  useEffect(() => {
     if (accessToken) {
-      const ws = new WebSocket(
-        `wss://196673.msk.web.highserver.ru/api/wss?accessToken=${accessToken}`,
-      );
+      const baseUrl =
+        import.meta.env.VITE_BASE_URL ||
+        'https://196673.msk.web.highserver.ru/api';
+      const wsUrl = baseUrl
+        .replace(/^https:\/\//, 'wss://')
+        .replace(/^http:\/\//, 'ws://');
+      const ws = new WebSocket(`${wsUrl}/wss?accessToken=${accessToken}`);
 
       ws.onopen = () => {
         setInterval(
@@ -162,8 +179,6 @@ export const WebSocketProvider = (props: React.PropsWithChildren) => {
         const currentChannelIdValue = currentChannelIdRef.current;
         const currentChatIdValue = currentChatIdRef.current;
         const userIdValue = userIdRef.current;
-
-        console.log(data);
 
         if (data.MessageType === 'New user on server') {
           const formattedUser = formatUser(data.Payload);
@@ -753,6 +768,148 @@ export const WebSocketProvider = (props: React.PropsWithChildren) => {
             }
           }
         }
+
+        if (
+          data.MessageType === 'Added reaction in text channel' ||
+          data.MessageType === 'Added reaction in notification channel'
+        ) {
+          const {
+            Id,
+            ServerId,
+            ChannelId,
+            MessageId,
+            AuthorId,
+            CreatedAt,
+            ReactionCode,
+          } = data.Payload;
+
+          if (currentServerIdValue === ServerId) {
+            dispatch(
+              addReactionWs({
+                id: Id,
+                serverId: ServerId,
+                channelId: ChannelId,
+                messageId: MessageId,
+                authorId: AuthorId,
+                createdAt: CreatedAt,
+                reactionCode: ReactionCode,
+              }),
+            );
+          }
+        }
+
+        if (data.MessageType === 'Added reaction in sub channel') {
+          const {
+            Id,
+            ServerId,
+            ChannelId,
+            MessageId,
+            AuthorId,
+            CreatedAt,
+            ReactionCode,
+          } = data.Payload;
+
+          if (currentServerIdValue === ServerId) {
+            dispatch(
+              addReactionSubWs({
+                id: Id,
+                serverId: ServerId,
+                channelId: ChannelId,
+                messageId: MessageId,
+                authorId: AuthorId,
+                createdAt: CreatedAt,
+                reactionCode: ReactionCode,
+              }),
+            );
+          }
+        }
+
+        if (data.MessageType === 'Added reaction in chat') {
+          const { Id, ChatId, MessageId, AuthorId, CreatedAt, ReactionCode } =
+            data.Payload;
+
+          dispatch(
+            addReactionChatWs({
+              id: Id,
+              chatId: ChatId,
+              messageId: MessageId,
+              authorId: AuthorId,
+              createdAt: CreatedAt,
+              reactionCode: ReactionCode,
+            }),
+          );
+        }
+
+        if (
+          data.MessageType === 'Removed reaction in text channel' ||
+          data.MessageType === 'Removed reaction in notification channel'
+        ) {
+          const {
+            Id,
+            ServerId,
+            ChannelId,
+            MessageId,
+            AuthorId,
+            CreatedAt,
+            ReactionCode,
+          } = data.Payload;
+
+          if (currentServerIdValue === ServerId) {
+            dispatch(
+              removeReactionWs({
+                id: Id,
+                serverId: ServerId,
+                channelId: ChannelId,
+                messageId: MessageId,
+                authorId: AuthorId,
+                createdAt: CreatedAt,
+                reactionCode: ReactionCode,
+              }),
+            );
+          }
+        }
+
+        if (data.MessageType === 'Removed reaction in sub channel') {
+          const {
+            Id,
+            ServerId,
+            ChannelId,
+            MessageId,
+            AuthorId,
+            CreatedAt,
+            ReactionCode,
+          } = data.Payload;
+
+          if (currentServerIdValue === ServerId) {
+            dispatch(
+              removeReactionSubWs({
+                id: Id,
+                serverId: ServerId,
+                channelId: ChannelId,
+                messageId: MessageId,
+                authorId: AuthorId,
+                createdAt: CreatedAt,
+                reactionCode: ReactionCode,
+              }),
+            );
+          }
+        }
+
+        if (data.MessageType === 'Removed reaction in chat') {
+          const { Id, ChatId, MessageId, AuthorId, CreatedAt, ReactionCode } =
+            data.Payload;
+
+          dispatch(
+            removeReactionChatWs({
+              id: Id,
+              chatId: ChatId,
+              messageId: MessageId,
+              authorId: AuthorId,
+              createdAt: CreatedAt,
+              reactionCode: ReactionCode,
+            }),
+          );
+        }
       };
 
       ws.onerror = (error) => {
@@ -944,6 +1101,44 @@ export const WebSocketProvider = (props: React.PropsWithChildren) => {
     [wsRef],
   );
 
+  const addReaction = useCallback(
+    (reaction: AddReaction, type: 'channel' | 'chat') => {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        const sendData = {
+          Type: type === 'channel' ? `Add reaction` : `Add reaction chat`,
+          Content: reaction,
+        };
+
+        wsRef.current.send(JSON.stringify(sendData));
+      } else {
+        console.error(
+          'WebSocket is not open. Ready state:',
+          wsRef.current?.readyState,
+        );
+      }
+    },
+    [wsRef],
+  );
+
+  const removeReaction = useCallback(
+    (reaction: RemoveReaction, type: 'channel' | 'chat') => {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        const sendData = {
+          Type: type === 'channel' ? `Remove reaction` : `Remove reaction chat`,
+          Content: reaction,
+        };
+
+        wsRef.current.send(JSON.stringify(sendData));
+      } else {
+        console.error(
+          'WebSocket is not open. Ready state:',
+          wsRef.current?.readyState,
+        );
+      }
+    },
+    [wsRef],
+  );
+
   return (
     <WebSocketContext.Provider
       value={{
@@ -956,6 +1151,8 @@ export const WebSocketProvider = (props: React.PropsWithChildren) => {
         readMessage,
         vote,
         unVote,
+        addReaction,
+        removeReaction,
       }}
     >
       {props.children}

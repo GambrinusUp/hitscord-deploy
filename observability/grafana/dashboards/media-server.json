@@ -1,0 +1,100 @@
+{
+  "id": null,
+  "title": "Hitscord Media Server",
+  "tags": ["hitscord", "media-server"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Active Connections",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        { "expr": "hitscord_media_active_connections", "refId": "A" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Rooms",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "targets": [{ "expr": "hitscord_media_rooms", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Peers",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "targets": [{ "expr": "hitscord_media_peers", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Producers",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "targets": [{ "expr": "hitscord_media_producers", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Consumers",
+      "gridPos": { "x": 0, "y": 4, "w": 6, "h": 4 },
+      "targets": [{ "expr": "hitscord_media_consumers", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Transports",
+      "gridPos": { "x": 6, "y": 4, "w": 6, "h": 4 },
+      "targets": [{ "expr": "hitscord_media_transports", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Connections Over Time",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "hitscord_media_active_connections", "refId": "A" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Producers and Consumers",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "hitscord_media_producers", "refId": "A" },
+        { "expr": "hitscord_media_consumers", "refId": "B" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Rooms and Peers",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "hitscord_media_rooms", "refId": "A" },
+        { "expr": "hitscord_media_peers", "refId": "B" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU (seconds per second)",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(process_cpu_user_seconds_total[1m])",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(process_cpu_system_seconds_total[1m])",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory (bytes)",
+      "gridPos": { "x": 12, "y": 20, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "process_resident_memory_bytes", "refId": "A" },
+        { "expr": "nodejs_heap_used_bytes", "refId": "B" },
+        { "expr": "nodejs_heap_size_total_bytes", "refId": "C" }
+      ]
+    }
+  ]
+}

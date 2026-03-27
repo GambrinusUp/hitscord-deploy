@@ -15,7 +15,6 @@ export const EditChannelUserCount = ({
   channelId,
   loading,
   setLoading,
-  onClose,
 }: EditChannelUserCountProps) => {
   const dispatch = useAppDispatch();
   const { serverData } = useAppSelector((state) => state.testServerStore);
@@ -34,7 +33,6 @@ export const EditChannelUserCount = ({
     if (result.meta.requestStatus === 'fulfilled') {
       setLoading(false);
       showSuccess('Настройки успешно обновлены');
-      onClose();
     }
   };
 

@@ -29,7 +29,7 @@ import { useChannelSettings } from './lib/useChannelSettings';
 import { useMentionSuggestions } from './lib/useMentionSuggestions';
 
 import { ChatMessage } from '~/entities/chat';
-import { attachFile, clearFiles } from '~/entities/files';
+import { attachFile, clearFiles, FileUploadOverlay } from '~/entities/files';
 import { MessageType } from '~/entities/message';
 import { useMessageAuthor } from '~/entities/message/lib/useMessageAuthor';
 import { AttachedFilesList } from '~/features/attachedFilesList';
@@ -92,6 +92,7 @@ export const ChatSection = ({
     type: MessageType.CHANNEL,
   });
   const [opened, { open, close }] = useDisclosure(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const { canWrite, canWriteSub, nonReadedCount, nonReadedTaggedCount } =
     useChannelSettings();
   useFileUploadNotification(loading === LoadingState.PENDING);
@@ -214,6 +215,88 @@ export const ChatSection = ({
     e.target.value = '';
   };
 
+  const uploadFiles = async (files: FileList | File[]) => {
+    if (!currentChannelId || !!editingMessage || !canWrite) return;
+
+    for (const file of Array.from(files)) {
+      await dispatch(
+        attachFile({ channelId: currentChannelId, file }),
+      ).unwrap();
+    }
+  };
+
+  const handlePaste = async (
+    event: React.ClipboardEvent<HTMLTextAreaElement>,
+  ) => {
+    const files = Array.from(event.clipboardData.items)
+      .filter((item) => item.kind === 'file')
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => file !== null);
+
+    if (files.length === 0) return;
+
+    event.preventDefault();
+    await uploadFiles(files);
+  };
+
+  /*const handleDragOver = (event: React.DragEvent<HTMLTextAreaElement>) => {
+    if (
+      event.dataTransfer.files.length === 0 ||
+      !currentChannelId ||
+      !!editingMessage ||
+      !canWrite
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+  };
+
+  const handleDrop = async (event: React.DragEvent<HTMLTextAreaElement>) => {
+    event.preventDefault();
+
+    if (event.dataTransfer.files.length === 0) return;
+    await uploadFiles(event.dataTransfer.files);
+  };*/
+
+  const hasFiles = (e: React.DragEvent) => {
+    return e.dataTransfer.types.includes('Files');
+  };
+
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+
+    if (hasFiles(e) && canWrite && !editingMessage && currentChannelId) {
+      setIsDragOver(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) {
+      return;
+    }
+    setIsDragOver(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+
+    if (hasFiles(e) && canWrite && !editingMessage && currentChannelId) {
+      setIsDragOver(true);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
+
+    if (!hasFiles(e) || !currentChannelId || !!editingMessage || !canWrite) {
+      return;
+    }
+
+    await uploadFiles(e.dataTransfer.files);
+  };
+
   const handleStartEdit = (messageToEdit: ChatMessage | ChannelMessage) => {
     const textToEdit = messageToEdit.text ?? '';
     setReplyMessage(null);
@@ -319,7 +402,14 @@ export const ChatSection = ({
           )}
         </Box>
 
-        <Box pos="relative">
+        <Box
+          pos="relative"
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+        >
+          {isDragOver && <FileUploadOverlay />}
           <AttachedFilesList />
           {replyMessage && (
             <Box p={6}>
@@ -431,6 +521,7 @@ export const ChatSection = ({
               value={newMessage}
               onChange={handleTextChange}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               autosize
               disabled={!canWrite}
               minRows={1}

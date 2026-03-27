@@ -1,4 +1,4 @@
-import {
+﻿import {
   Stack,
   Text,
   Avatar,
@@ -9,6 +9,7 @@ import {
   Modal,
   Slider,
   Switch,
+  Select,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -21,6 +22,7 @@ import {
   PhoneMissed,
   SlidersHorizontal,
 } from 'lucide-react';
+import { useEffect } from 'react';
 
 import { stylesControlPanel } from './ControlPanel.style';
 
@@ -41,6 +43,8 @@ import {
   setCurrentVoiceChannelServerId,
 } from '~/store/ServerStore';
 
+const SYSTEM_DEVICE_VALUE = '__system_default__';
+
 export const ControlPanel = () => {
   const dispatch = useAppDispatch();
   const {
@@ -52,6 +56,12 @@ export const ControlPanel = () => {
     isCameraOn,
     micSettings,
     setMicSettings,
+    audioInputDevices,
+    audioOutputDevices,
+    selectedOutputDeviceId,
+    setSelectedOutputDeviceId,
+    refreshAudioDevices,
+    switchInputDevice,
   } = useMediaContext();
   const disconnect = useDisconnect();
   const { startScreenSharing, stopScreenSharing } = useScreenSharing();
@@ -66,6 +76,30 @@ export const ControlPanel = () => {
   const { isOpenHome } = useAppSelector((state) => state.appStore);
   const [settingsOpened, { open: openSettings, close: closeSettings }] =
     useDisclosure(false);
+  const inputDeviceOptions = [
+    { value: SYSTEM_DEVICE_VALUE, label: 'System default microphone' },
+    ...audioInputDevices
+      .filter((device) => Boolean(device.deviceId))
+      .map((device, index) => ({
+        value: device.deviceId,
+        label: device.label || `Microphone ${index + 1}`,
+      })),
+  ];
+  const outputDeviceOptions = [
+    { value: SYSTEM_DEVICE_VALUE, label: 'System default output' },
+    ...audioOutputDevices
+      .filter((device) => Boolean(device.deviceId))
+      .map((device, index) => ({
+        value: device.deviceId,
+        label: device.label || `Output ${index + 1}`,
+      })),
+  ];
+
+  useEffect(() => {
+    if (!settingsOpened) return;
+
+    refreshAudioDevices();
+  }, [settingsOpened, refreshAudioDevices]);
 
   const handleScreenShareClick = () => {
     if (isStreaming) {
@@ -219,6 +253,28 @@ export const ControlPanel = () => {
         title="Настройки микрофона"
       >
         <Stack gap="md">
+          <Select
+            label="Устройство ввода"
+            data={inputDeviceOptions}
+            value={micSettings.inputDeviceId || SYSTEM_DEVICE_VALUE}
+            onChange={(value) =>
+              switchInputDevice(
+                !value || value === SYSTEM_DEVICE_VALUE ? null : value,
+              )
+            }
+            nothingFoundMessage="Не найдено устройств ввода"
+          />
+          <Select
+            label="Устройство вывода"
+            data={outputDeviceOptions}
+            value={selectedOutputDeviceId || SYSTEM_DEVICE_VALUE}
+            onChange={(value) =>
+              setSelectedOutputDeviceId(
+                !value || value === SYSTEM_DEVICE_VALUE ? null : value,
+              )
+            }
+            nothingFoundMessage="Не найдено устройств вывода"
+          />
           <Stack gap={6}>
             <Group justify="space-between">
               <Text size="sm">Громкость</Text>
@@ -253,6 +309,16 @@ export const ControlPanel = () => {
               }
             />
           </Stack>
+          <Switch
+            label="Прослушивание микрофона"
+            checked={micSettings.monitoringEnabled}
+            onChange={(event) =>
+              setMicSettings((prev) => ({
+                ...prev,
+                monitoringEnabled: event.currentTarget.checked,
+              }))
+            }
+          />
           <Switch
             label="Шумоподавление"
             checked={micSettings.noiseSuppression}

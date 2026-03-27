@@ -7,8 +7,6 @@ export const createsWorker = async () => {
     rtcMaxPort: RTC_MAX_PORT,
   });
 
-  console.log(`worker pid ${worker.pid}`);
-
   worker.on("died", (error) => {
     // This implies something serious happened, so kill the application
     console.error("mediasoup worker has died: ", error.message);

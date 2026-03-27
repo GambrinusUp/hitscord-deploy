@@ -7,7 +7,6 @@ let recvTransport;
 document.getElementById("join-button").addEventListener("click", async () => {
   const username = document.getElementById("username").value;
   const roomId = document.getElementById("room-id").value;
-  console.log(username, roomId);
   if (username && roomId) {
     const socket = io();
     socket.emit("joinRoom", { username, roomId });
@@ -37,7 +36,7 @@ document.getElementById("join-button").addEventListener("click", async () => {
             kind: track.kind,
           });
         }
-      }
+      },
     );
 
     socket.on("newProducer", async ({ producerId, kind }) => {
@@ -84,7 +83,7 @@ const consume = async (socket, producerId, kind) => {
           });
           resolve(consumer);
         }
-      }
+      },
     );
   });
 };

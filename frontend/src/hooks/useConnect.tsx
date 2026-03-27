@@ -6,6 +6,7 @@ import {
   createDevice,
   createSendTransport,
   getLocalAudioStream,
+  getProducers,
   joinRoom,
   type MicAudioState,
 } from '~/context';
@@ -45,7 +46,7 @@ export const useConnect = () => {
       }
 
       micAudioState = await getLocalAudioStream(micSettings);
-      const audioTrack = micAudioState.processedTrack;
+      const audioTrack = micAudioState?.processedTrack ?? null;
 
       const { rtpCapabilities, muteStatus } = await joinRoom(
         roomName,
@@ -58,7 +59,7 @@ export const useConnect = () => {
       const isMuted =
         muteStatus === MuteStatus.SelfMuted || muteStatus === MuteStatus.Muted;
 
-      if (isMuted) {
+      if (audioTrack && isMuted) {
         audioTrack.enabled = false;
       }
 
@@ -75,6 +76,17 @@ export const useConnect = () => {
       );
 
       setProducerTransport(producerTransport);
+
+      if (!audioTrack) {
+        getProducers(
+          socket,
+          device,
+          addConsumer,
+          consumerTransport,
+          setConsumerTransport,
+        );
+      }
+
       setIsMuted(isMuted);
       setIsUserMute(muteStatus === MuteStatus.Muted);
       setMicAudioState(micAudioState);

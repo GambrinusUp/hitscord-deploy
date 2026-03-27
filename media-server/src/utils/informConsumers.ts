@@ -9,17 +9,14 @@ export const informConsumers = (
   currentServerId: string,
   connections: Namespace
 ) => {
-  const uniqueProducers = new Set();
+  const roomPeers = store.rooms[roomName]?.peers ?? [];
 
-  store.producers.forEach((producerData) => {
-    if (
-      producerData.socketId !== socketId &&
-      producerData.roomName === roomName &&
-      !uniqueProducers.has(producerData.socketId)
-    ) {
-      uniqueProducers.add(producerData.socketId);
-      const producerSocket = store.peers[producerData.socketId].socket;
-      producerSocket.emit("new-producer", { producerId: id });
+  roomPeers.forEach((peerSocketId) => {
+    if (peerSocketId === socketId) return;
+
+    const peerSocket = store.peers[peerSocketId]?.socket;
+    if (peerSocket) {
+      peerSocket.emit("new-producer", { producerId: id });
     }
   });
 

@@ -6,7 +6,7 @@ export interface EditModal {
 
 export interface UserInList {
   socketId: string;
-  producerId: string;
+  producerId?: string;
   userName: string;
   userId?: string;
   source?: string;

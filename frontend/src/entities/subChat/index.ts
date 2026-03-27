@@ -6,5 +6,7 @@ export {
   deleteSubChatMessageWS,
   updateSubChatVoteWs,
   setSubChatInfo,
+  addReactionSubWs,
+  removeReactionSubWs,
 } from './model/slice';
 export { getMoreSubChatMessages, getSubChatMessages } from './model/actions';

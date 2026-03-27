@@ -1,4 +1,5 @@
 import { ChatMessage, MessageFile } from '~/entities/chat';
+import { MessageReaction } from '~/entities/reactions';
 import {
   MessageType,
   VoteVariant,
@@ -46,6 +47,14 @@ const formatNestedChannel = (rawNestedChannel: any): NestedChannel => ({
   isNotifiable: rawNestedChannel.IsNotifiable,
 });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const formatReactions = (rawReaction: any): MessageReaction => ({
+  id: rawReaction.Id,
+  authorId: rawReaction.AuthorId,
+  createdAt: rawReaction.CreatedAt,
+  reactionCode: rawReaction.ReactionCode,
+});
+
 export const formatMessage = (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rawMessage: any,
@@ -65,6 +74,7 @@ export const formatMessage = (
       ? formatReplyMessage(rawMessage.ReplyToMessage)
       : null,
     isTagged: rawMessage.isTagged,
+    reactions: rawMessage.Reactions.map(formatReactions),
   };
 
   if (messageType === MessageType.Classic) {
@@ -115,6 +125,7 @@ export const formatChatMessage = (rawMessage: any): ChatMessage => {
       ? formatReplyMessage(rawMessage.ReplyToMessage)
       : null,
     isTagged: rawMessage.isTagged,
+    reactions: rawMessage.Reactions.map(formatReactions),
   };
 
   if (messageType === MessageType.Classic) {
