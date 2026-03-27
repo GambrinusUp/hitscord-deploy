@@ -691,7 +691,6 @@ export const MessageItem = ({
             <div ref={pickerContainerRef}>
               <EmojiPicker
                 onSelect={(emoji) => {
-                  console.log(emoji);
                   handleAddReaction(emoji);
                   setShowEmojiPicker(false);
                   setMenuOpened(false);

@@ -148,9 +148,13 @@ export const WebSocketProvider = (props: React.PropsWithChildren) => {
 
   useEffect(() => {
     if (accessToken) {
-      const ws = new WebSocket(
-        `wss://196673.msk.web.highserver.ru/api/wss?accessToken=${accessToken}`,
-      );
+      const baseUrl =
+        import.meta.env.VITE_BASE_URL ||
+        'https://196673.msk.web.highserver.ru/api';
+      const wsUrl = baseUrl
+        .replace(/^https:\/\//, 'wss://')
+        .replace(/^http:\/\//, 'ws://');
+      const ws = new WebSocket(`${wsUrl}/wss?accessToken=${accessToken}`);
 
       ws.onopen = () => {
         setInterval(
@@ -1104,8 +1108,6 @@ export const WebSocketProvider = (props: React.PropsWithChildren) => {
           Type: type === 'channel' ? `Add reaction` : `Add reaction chat`,
           Content: reaction,
         };
-
-        console.log(sendData);
 
         wsRef.current.send(JSON.stringify(sendData));
       } else {

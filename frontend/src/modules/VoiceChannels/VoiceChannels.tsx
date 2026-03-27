@@ -132,9 +132,7 @@ export const VoiceChannels = () => {
       'kickUser',
       { targetSocketId: socketId },
       (response: { success: boolean; message: string }) => {
-        if (response.success) {
-          console.log('Пользователь успешно кикнут:', response.message);
-        } else {
+        if (!response.success) {
           console.error('Ошибка кикания пользователя:', response.message);
         }
       },
@@ -155,8 +153,6 @@ export const VoiceChannels = () => {
   };
 
   const handleMuteUser = (userId: string, isMuted: boolean | undefined) => {
-    console.log(isMuted);
-
     if (isMuted) {
       socket.emit(
         'unmuteUserById',
@@ -167,7 +163,7 @@ export const VoiceChannels = () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (response: any) => {
           if (response.success) {
-            console.log(response.message);
+            // User unmuted
           } else {
             console.error('Ошибка при анмуте:', response.message);
           }
@@ -183,7 +179,7 @@ export const VoiceChannels = () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (response: any) => {
           if (response.success) {
-            console.log(response.message);
+            // User muted
           } else {
             console.error('Ошибка при муте:', response.message);
           }
@@ -282,8 +278,7 @@ export const VoiceChannels = () => {
 
                           return bPriority - aPriority;
                         })
-                        .map(
-                        ([socketId, { producers, userName, userId }]) => {
+                        .map(([socketId, { producers, userName, userId }]) => {
                           const producerIds = producers.map(
                             (producer) => producer.producerId,
                           );
@@ -313,8 +308,7 @@ export const VoiceChannels = () => {
                               handleMuteUser={handleMuteUser}
                             />
                           );
-                        },
-                      ),
+                        }),
                     )}
                 </Stack>
               </React.Fragment>

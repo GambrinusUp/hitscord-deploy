@@ -40,7 +40,7 @@ export const increment = (name: string, by = 1) => {
 };
 
 export const logInfo = (message: string, meta?: Record<string, unknown>) => {
-  console.log("level=info", message, meta || "");
+  console.info("level=info", message, meta || "");
 };
 
 export const logWarn = (message: string, meta?: Record<string, unknown>) => {
