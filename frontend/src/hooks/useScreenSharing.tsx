@@ -16,14 +16,27 @@ export const useScreenSharing = () => {
   const audioProducerIdRef = useRef<string | null>(null);
 
   const startScreenSharing = async () => {
-    const screenStream = await navigator.mediaDevices.getDisplayMedia({
-      video: {
-        width: { max: 1280 },
-        height: { max: 720 },
-        frameRate: { max: 15 },
-      },
-      audio: true,
-    });
+    let screenStream: MediaStream;
+
+    try {
+      screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          width: { max: 1280 },
+          height: { max: 720 },
+          frameRate: { max: 15 },
+        },
+        audio: true,
+      });
+    } catch {
+      screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          width: { max: 1280 },
+          height: { max: 720 },
+          frameRate: { max: 15 },
+        },
+        audio: false,
+      });
+    }
 
     const screenTrack = screenStream.getVideoTracks()[0];
     const videoProducer = await producerTransport!.produce({
