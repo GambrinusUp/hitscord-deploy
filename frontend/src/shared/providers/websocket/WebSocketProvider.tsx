@@ -150,7 +150,7 @@ export const WebSocketProvider = (props: React.PropsWithChildren) => {
     if (accessToken) {
       const baseUrl =
         import.meta.env.VITE_BASE_URL ||
-        'https://196673.msk.web.highserver.ru/api';
+        'https://166664.msk.web.highserver.ru/api';
       const wsUrl = baseUrl
         .replace(/^https:\/\//, 'wss://')
         .replace(/^http:\/\//, 'ws://');
