@@ -38,7 +38,8 @@ export const SettingsChannelModal = ({
   const { serverData, error } = useAppSelector(
     (state) => state.testServerStore,
   );
-  const canWorkChannels = serverData.permissions.canWorkChannels;
+  const canWorkChannels =
+    serverData.isCreator || serverData.permissions.canWorkChannels;
 
   const [activeSetting, setActiveSetting] = useState<
     'name' | 'delete' | 'watchSettings' | 'settings' | 'count' | 'notifiable'

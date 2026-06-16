@@ -15,7 +15,6 @@ import {
 import {
   ChangeProfileData,
   LoginCredentials,
-  LoginResponse,
   RegisterCredentials,
   SettingType,
   User,
@@ -26,14 +25,12 @@ import { UserAPI } from '~/entities/user/api';
 import { ERROR_MESSAGES } from '~/shared/constants';
 
 export const registerUser = createAsyncThunk<
-  LoginResponse,
+  void,
   RegisterCredentials,
   { rejectValue: string }
 >(REGISTER_USER_ACTION_NAME, async (user, { rejectWithValue }) => {
   try {
-    const response = UserAPI.registerUser(user);
-
-    return response;
+    await UserAPI.registerUser(user);
   } catch (e) {
     if (e instanceof AxiosError) {
       return rejectWithValue(
@@ -46,14 +43,12 @@ export const registerUser = createAsyncThunk<
 });
 
 export const loginUser = createAsyncThunk<
-  LoginResponse,
+  void,
   LoginCredentials,
   { rejectValue: string }
 >(LOGIN_USER_ACTION_NAME, async (loginData, { rejectWithValue }) => {
   try {
-    const response = await UserAPI.loginUser(loginData);
-
-    return response;
+    await UserAPI.loginUser(loginData);
   } catch (e) {
     if (e instanceof AxiosError) {
       return rejectWithValue(
@@ -103,14 +98,12 @@ export const logoutUser = createAsyncThunk<void, void, { rejectValue: string }>(
 );
 
 export const refreshTokens = createAsyncThunk<
-  LoginResponse,
-  { refreshToken: string },
+  void,
+  void,
   { rejectValue: string }
->(REFRESH_ACTION_NAME, async ({ refreshToken }, { rejectWithValue }) => {
+>(REFRESH_ACTION_NAME, async (_, { rejectWithValue }) => {
   try {
-    const response = await UserAPI.refresh(refreshToken);
-
-    return response;
+    await UserAPI.refresh();
   } catch (e) {
     if (e instanceof AxiosError) {
       return rejectWithValue(

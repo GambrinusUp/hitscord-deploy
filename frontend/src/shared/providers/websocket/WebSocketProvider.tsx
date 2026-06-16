@@ -1,6 +1,7 @@
 import { notifications } from '@mantine/notifications';
+import * as signalR from '@microsoft/signalr';
 import { CircleAlert } from 'lucide-react';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSound } from 'use-sound';
 
 import { WebSocketContext } from './WebSocketContext';
@@ -81,13 +82,110 @@ import {
   removeReactionWs,
 } from '~/store/ServerStore';
 
+const SIGNALR_HUB_URL =
+  import.meta.env.VITE_SIGNALR_URL ||
+  `${(import.meta.env.VITE_BASE_URL || '').replace(/\/api\/?$/, '')}/api/wss`;
+
+const SIGNALR_EVENTS = [
+  'New user on server',
+  'User unsubscribe',
+  'Role changed',
+  'New channel',
+  'Channel deleted',
+  'New server name',
+  'New users name on server',
+  'You removed from server',
+  'Server deleted',
+  'Change channel name',
+  'New user in voice channel',
+  'User remove from voice channel',
+  'User change his mute status',
+  'New role',
+  'Updated role settings',
+  'Voice channel settings edited',
+  'Text channel settings edited',
+  'Sub channel settings edited',
+  'Notification channel settings edited',
+  'New message in text channel',
+  'New message in notification channel',
+  'New message in sub channel',
+  'New message in chat',
+  'Deleted message in text channel',
+  'Deleted message in notification channel',
+  'Deleted message in sub channel',
+  'Deleted message in chat',
+  'Updated message in text channel',
+  'Updated message in notification channel',
+  'Updated message in chat',
+  'Updated message in sub channel',
+  'User notified',
+  'User notified in chat',
+  'Error',
+  'ErrorWithMessage',
+  'Role added to user',
+  'Role removed from user',
+  'New user in chat',
+  'You have been added into a chat',
+  'New icon on chat',
+  'New icon on server',
+  'User voted in text channel',
+  'User unvoted in text channel',
+  'User voted in notification channel',
+  'User unvoted in notification channel',
+  'User voted in sub channel',
+  'User unvoted in sub channel',
+  'User voted in chat',
+  'User unvoted in chat',
+  'New friendship application',
+  'Created friendship application',
+  'Friendship application declined',
+  'Friendship application deleted',
+  'Friendship application approved',
+  'You approved application',
+  'Friendship deleted',
+  'User mute status is changed',
+  'Added reaction in text channel',
+  'Added reaction in notification channel',
+  'Added reaction in sub channel',
+  'Added reaction in chat',
+  'Removed reaction in text channel',
+  'Removed reaction in notification channel',
+  'Removed reaction in sub channel',
+  'Removed reaction in chat',
+] as const;
+
+const removeToken = <T extends { Token?: string }>(payload: T) => {
+  const { Token: _token, ...data } = payload;
+
+  return data;
+};
+
+const toPascalCasePayload = (payload: unknown): unknown => {
+  if (Array.isArray(payload)) {
+    return payload.map(toPascalCasePayload);
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return payload;
+  }
+
+  return Object.fromEntries(
+    Object.entries(payload).map(([key, value]) => [
+      key.charAt(0).toUpperCase() + key.slice(1),
+      toPascalCasePayload(value),
+    ]),
+  );
+};
+
 export const WebSocketProvider = (props: React.PropsWithChildren) => {
   const { volume } = useAudioSettings();
   const [play] = useSound(sound, { volume });
   const dispatch = useAppDispatch();
   const disconnect = useDisconnect();
   const { showMessage, showError } = useNotification();
-  const { accessToken, user } = useAppSelector((state) => state.userStore);
+  const { accessToken, isLoggedIn, user } = useAppSelector(
+    (state) => state.userStore,
+  );
   const {
     currentServerId,
     currentVoiceChannelId,
@@ -97,7 +195,8 @@ export const WebSocketProvider = (props: React.PropsWithChildren) => {
   } = useAppSelector((state) => state.testServerStore);
   const { activeChat } = useAppSelector((state) => state.chatsStore);
   const { currentSubChatId } = useAppSelector((state) => state.subChatStore);
-  const wsRef = useRef<WebSocket | null>(null);
+  const connectionRef = useRef<signalR.HubConnection | null>(null);
+  const [connectionStarted, setConnectionStarted] = useState(false);
   const { setIsUserMute } = useMediaContext();
 
   const serverIdRef = useRef<string | null>(null);
@@ -147,28 +246,26 @@ export const WebSocketProvider = (props: React.PropsWithChildren) => {
   }, [currentSubChatId]);
 
   useEffect(() => {
-    if (accessToken) {
-      const baseUrl =
-        import.meta.env.VITE_BASE_URL ||
-        'https://166664.msk.web.highserver.ru/api';
-      const wsUrl = baseUrl
-        .replace(/^https:\/\//, 'wss://')
-        .replace(/^http:\/\//, 'ws://');
-      const ws = new WebSocket(`${wsUrl}/wss?accessToken=${accessToken}`);
+    if (isLoggedIn) {
+      console.log(SIGNALR_HUB_URL);
+      
+      const connection = new signalR.HubConnectionBuilder()
+        .withUrl(SIGNALR_HUB_URL, {
+          accessTokenFactory: () => accessToken,
+          withCredentials: true,
+        })
+        .withAutomaticReconnect()
+        .configureLogging(signalR.LogLevel.Warning)
+        .build();
 
-      ws.onopen = () => {
-        setInterval(
-          () => {
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ type: 'ping' }));
-            }
-          },
-          5 * 60 * 1000,
-        );
-      };
-
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
+      // SignalR events reuse the legacy dynamic payload shape from the old websocket.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const handleMessage = (messageType: string, payload: any) => {
+        const data = {
+          MessageType: messageType,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          Payload: toPascalCasePayload(payload) as any,
+        };
 
         const currentServerIdValue = serverIdRef.current;
         const currentVoiceChannelIdValue = currentVoiceChannelIdRef.current;
@@ -179,6 +276,8 @@ export const WebSocketProvider = (props: React.PropsWithChildren) => {
         const currentChannelIdValue = currentChannelIdRef.current;
         const currentChatIdValue = currentChatIdRef.current;
         const userIdValue = userIdRef.current;
+
+        console.log(data);
 
         if (data.MessageType === 'New user on server') {
           const formattedUser = formatUser(data.Payload);
@@ -329,20 +428,6 @@ export const WebSocketProvider = (props: React.PropsWithChildren) => {
                 muteStatus: Number(MuteStatus),
               }),
             );
-          }
-        }
-
-        if (data.MessageType === 'Voice channel settings edited') {
-          const { ServerId, RoleId } = data.Payload;
-
-          const containsRole = userRolesIdsValue.find(
-            (role) => role.roleId === RoleId,
-          );
-
-          if (containsRole) {
-            if (currentServerIdValue === ServerId) {
-              dispatch(getServerData({ serverId: ServerId }));
-            }
           }
         }
 
@@ -592,6 +677,15 @@ export const WebSocketProvider = (props: React.PropsWithChildren) => {
 
         if (data.MessageType === 'ErrorWithMessage') {
           const message = `${data.Payload.Object}: ${data.Payload.Message}`;
+          showError(message);
+        }
+
+        if (data.MessageType === 'Error') {
+          const message =
+            data.Payload?.MessageFront ||
+            data.Payload?.Message ||
+            'SignalR error';
+
           showError(message);
         }
 
@@ -912,231 +1006,193 @@ export const WebSocketProvider = (props: React.PropsWithChildren) => {
         }
       };
 
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-      };
+      SIGNALR_EVENTS.forEach((eventName) => {
+        connection.on(eventName, (payload) => handleMessage(eventName, payload));
+      });
 
-      wsRef.current = ws;
+      connection.onreconnected(() => {
+        setConnectionStarted(true);
+      });
+
+      connection.onreconnecting(() => {
+        setConnectionStarted(false);
+      });
+
+      connection.onclose((error) => {
+        setConnectionStarted(false);
+
+        if (error) {
+          console.error('SignalR connection closed:', error);
+        }
+      });
+
+      connectionRef.current = connection;
+
+      connection
+        .start()
+        .then(() => setConnectionStarted(true))
+        .catch((error) => {
+          console.error('SignalR connection error:', error);
+        });
 
       return () => {
-        //console.log('Closing WebSocket connection');
-        ws.close();
+        setConnectionStarted(false);
+        connectionRef.current = null;
+        void connection.stop();
       };
     }
-  }, [accessToken, dispatch]);
+  }, [accessToken, dispatch, isLoggedIn]);
+
+  const invokeHub = useCallback((methodName: string, ...args: unknown[]) => {
+    const connection = connectionRef.current;
+
+    if (connection?.state === signalR.HubConnectionState.Connected) {
+      void connection.invoke(methodName, ...args).catch((error) => {
+        console.error(`SignalR ${methodName} error:`, error);
+      });
+
+      return;
+    }
+
+    console.error('SignalR connection is not connected:', connection?.state);
+  }, []);
+
+  useEffect(() => {
+    if (!connectionStarted || !currentServerId) {
+      return;
+    }
+
+    invokeHub('JoinServer', currentServerId);
+
+    return () => {
+      invokeHub('LeaveServer', currentServerId);
+    };
+  }, [connectionStarted, currentServerId, invokeHub]);
+
+  useEffect(() => {
+    const channelId = currentChannelId ?? currentNotificationChannelId;
+
+    if (!connectionStarted || !channelId) {
+      return;
+    }
+
+    invokeHub('JoinChannel', channelId);
+
+    return () => {
+      invokeHub('LeaveChannel', channelId);
+    };
+  }, [
+    connectionStarted,
+    currentChannelId,
+    currentNotificationChannelId,
+    invokeHub,
+  ]);
+
+  useEffect(() => {
+    if (!connectionStarted || !currentSubChatId) {
+      return;
+    }
+
+    invokeHub('JoinChannel', currentSubChatId);
+
+    return () => {
+      invokeHub('LeaveChannel', currentSubChatId);
+    };
+  }, [connectionStarted, currentSubChatId, invokeHub]);
+
+  useEffect(() => {
+    if (!connectionStarted || !activeChat) {
+      return;
+    }
+
+    invokeHub('JoinChat', activeChat);
+
+    return () => {
+      invokeHub('LeaveChat', activeChat);
+    };
+  }, [activeChat, connectionStarted, invokeHub]);
 
   const sendMessage = useCallback(
     (message: CreateMessageWs) => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        const sendData = {
-          Type: 'New message',
-          Content: message,
-        };
-
-        //console.log(sendData);
-        wsRef.current.send(JSON.stringify(sendData));
-      } else {
-        console.error(
-          'WebSocket is not open. Ready state:',
-          wsRef.current?.readyState,
-        );
-      }
+      invokeHub('SendMessageChannel', removeToken(message));
     },
-    [wsRef],
+    [invokeHub],
   );
 
   const sendChatMessage = useCallback(
     (message: CreateMessageWs) => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        const sendData = {
-          Type: 'New message chat',
-          Content: message,
-        };
-
-        //console.log(sendData);
-
-        wsRef.current.send(JSON.stringify(sendData));
-      } else {
-        console.error(
-          'WebSocket is not open. Ready state:',
-          wsRef.current?.readyState,
-        );
-      }
+      invokeHub('SendMessageChat', removeToken(message));
     },
-    [wsRef],
+    [invokeHub],
   );
 
   const editMessage = useCallback(
     (message: EditMessageWs) => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        const sendData = {
-          Type: 'Update message',
-          Content: message,
-        };
-
-        wsRef.current.send(JSON.stringify(sendData));
-      } else {
-        console.error(
-          'WebSocket is not open. Ready state:',
-          wsRef.current?.readyState,
-        );
-      }
+      invokeHub('UpdateMessageChannel', removeToken(message));
     },
-    [wsRef],
+    [invokeHub],
   );
 
   const editChatMessage = useCallback(
     (message: EditMessageWs) => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        const sendData = {
-          Type: 'Update message chat',
-          Content: message,
-        };
-
-        wsRef.current.send(JSON.stringify(sendData));
-      } else {
-        console.error(
-          'WebSocket is not open. Ready state:',
-          wsRef.current?.readyState,
-        );
-      }
+      invokeHub('UpdateMessageChat', removeToken(message));
     },
-    [wsRef],
+    [invokeHub],
   );
 
   const deleteMessage = useCallback(
     (message: DeleteMessageWs) => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        const sendData = {
-          Type: 'Delete message',
-          Content: message,
-        };
-
-        //console.log(sendData);
-
-        wsRef.current.send(JSON.stringify(sendData));
-      } else {
-        console.error(
-          'WebSocket is not open. Ready state:',
-          wsRef.current?.readyState,
-        );
-      }
+      invokeHub('DeleteMessageChannel', removeToken(message));
     },
-    [wsRef],
+    [invokeHub],
   );
 
   const deleteChatMessage = useCallback(
     (message: DeleteMessageWs) => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        const sendData = {
-          Type: 'Delete message chat',
-          Content: message,
-        };
-
-        wsRef.current.send(JSON.stringify(sendData));
-      } else {
-        console.error(
-          'WebSocket is not open. Ready state:',
-          wsRef.current?.readyState,
-        );
-      }
+      invokeHub('DeleteMessageChat', removeToken(message));
     },
-    [wsRef],
+    [invokeHub],
   );
 
   const readMessage = useCallback(
     (message: ReadMessageWs) => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        const sendData = {
-          Type: 'See message',
-          Content: message,
-        };
-
-        wsRef.current.send(JSON.stringify(sendData));
-      } else {
-        console.error(
-          'WebSocket is not open. Ready state:',
-          wsRef.current?.readyState,
-        );
-      }
+      invokeHub('SeeMessage', removeToken(message));
     },
-    [wsRef],
+    [invokeHub],
   );
 
   const vote = useCallback(
     (voteData: Vote) => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        const sendData = {
-          Type: 'Vote',
-          Content: voteData,
-        };
-
-        wsRef.current.send(JSON.stringify(sendData));
-      } else {
-        console.error(
-          'WebSocket is not open. Ready state:',
-          wsRef.current?.readyState,
-        );
-      }
+      invokeHub('Vote', removeToken(voteData));
     },
-    [wsRef],
+    [invokeHub],
   );
 
   const unVote = useCallback(
     (voteData: Vote) => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        const sendData = {
-          Type: 'Unvote',
-          Content: voteData,
-        };
-
-        wsRef.current.send(JSON.stringify(sendData));
-      } else {
-        console.error(
-          'WebSocket is not open. Ready state:',
-          wsRef.current?.readyState,
-        );
-      }
+      invokeHub('Unvote', removeToken(voteData));
     },
-    [wsRef],
+    [invokeHub],
   );
 
   const addReaction = useCallback(
     (reaction: AddReaction, type: 'channel' | 'chat') => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        const sendData = {
-          Type: type === 'channel' ? `Add reaction` : `Add reaction chat`,
-          Content: reaction,
-        };
-
-        wsRef.current.send(JSON.stringify(sendData));
-      } else {
-        console.error(
-          'WebSocket is not open. Ready state:',
-          wsRef.current?.readyState,
-        );
-      }
+      invokeHub(
+        type === 'channel' ? 'AddReactionChannel' : 'AddReactionChat',
+        removeToken(reaction),
+      );
     },
-    [wsRef],
+    [invokeHub],
   );
 
   const removeReaction = useCallback(
     (reaction: RemoveReaction, type: 'channel' | 'chat') => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        const sendData = {
-          Type: type === 'channel' ? `Remove reaction` : `Remove reaction chat`,
-          Content: reaction,
-        };
-
-        wsRef.current.send(JSON.stringify(sendData));
-      } else {
-        console.error(
-          'WebSocket is not open. Ready state:',
-          wsRef.current?.readyState,
-        );
-      }
+      invokeHub(
+        type === 'channel' ? 'RemoveReactionChannel' : 'RemoveReactionChat',
+        removeToken(reaction),
+      );
     },
-    [wsRef],
+    [invokeHub],
   );
 
   return (

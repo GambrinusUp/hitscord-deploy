@@ -14,15 +14,17 @@ import {
   ImageUp,
   LockOpen,
   Plus,
+  Bot,
   Trash,
   UserCheck,
   UserMinus,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { ServerSettingsModalProps } from './ServerSettingsModal.types';
 import { UserRoleItem } from './UserRoleItem';
 
+import { BotAPI } from '~/entities/bot';
 import {
   ChangeServerIsClosed,
   DeleteServer,
@@ -33,7 +35,11 @@ import { useAppDispatch, useAppSelector, useNotification } from '~/hooks';
 import { IconChange } from '~/modules/SideBar/components/IconChange';
 import { LoadingState } from '~/shared';
 import { getRoles } from '~/store/RolesStore';
-import { changeServerName, deleteUserFromServer } from '~/store/ServerStore';
+import {
+  changeServerName,
+  deleteUserFromServer,
+  getServerData,
+} from '~/store/ServerStore';
 
 export const ServerSettingsModal = ({
   opened,
@@ -53,13 +59,14 @@ export const ServerSettingsModal = ({
     | 'changeIcon'
     | 'changeIsClosed'
     | 'serverApplications'
+    | 'bots'
     | 'deleteServer'
   >('roles');
   //const [assignRoleUserId, setAssignRoleUserId] = useState<string | null>('');
   //const [assignRoleId, setAssignRoleId] = useState<string | null>('');
   const [loading, setLoading] = useState(false);
   const [newServerName, setNewServerName] = useState(serverData.serverName);
-  const { showSuccess } = useNotification();
+  const { showSuccess, showError } = useNotification();
   const [deletedUserId, setDeletedUserId] = useState<string | null>('');
   const [banReason, setBanReason] = useState<string>('');
   const isCreator = serverData.isCreator;
@@ -68,6 +75,13 @@ export const ServerSettingsModal = ({
   const canCreateRoles = serverData.permissions.canCreateRoles;
   const users = serverData.users;
   const serverIsClosed = serverData.isClosed;
+  const botsOnServer = useMemo(() => {
+    return users.filter((userOnServer) => {
+      return userOnServer.systemRoles.some((role) => {
+        return role.name === 'Бот' || Number(role.type) === 2;
+      });
+    });
+  }, [users]);
 
   /*const assignRole = async () => {
     if (!assignRoleUserId || !assignRoleId) return;
@@ -131,6 +145,23 @@ export const ServerSettingsModal = ({
         setBanReason('');
         onClose();
       }
+    }
+  };
+
+  const handleRemoveBot = async (botId: string) => {
+    if (!currentServerId) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await BotAPI.removeBotFromServer({ botId, serverId: currentServerId });
+      showSuccess('Бот успешно удалён с сервера');
+      dispatch(getServerData({ serverId: currentServerId }));
+    } catch {
+      showError('Не удалось удалить бота с сервера');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -217,6 +248,14 @@ export const ServerSettingsModal = ({
               onClick={() => setActiveSetting('serverApplications')}
             />
           )}
+          {(isCreator || canDeleteUsers) && (
+            <NavLink
+              label="Боты"
+              leftSection={<Bot size={16} />}
+              active={activeSetting === 'bots'}
+              onClick={() => setActiveSetting('bots')}
+            />
+          )}
           {isCreator && (
             <NavLink
               label="Удаление сервера"
@@ -301,6 +340,33 @@ export const ServerSettingsModal = ({
           {activeSetting === 'changeIcon' && <IconChange />}
           {activeSetting === 'changeIsClosed' && <ChangeServerIsClosed />}
           {activeSetting === 'serverApplications' && <ServerApplications />}
+          {activeSetting === 'bots' && (isCreator || canDeleteUsers) && (
+            <Stack gap="md" w={500}>
+              <Text size="lg">Боты на сервере</Text>
+              {botsOnServer.length === 0 && (
+                <Text c="dimmed">На сервере пока нет ботов</Text>
+              )}
+              {botsOnServer.map((botUser) => (
+                <Group key={botUser.userId} justify="space-between">
+                  <Stack gap={0}>
+                    <Text fw={500}>{botUser.userName}</Text>
+                    <Text size="sm" c="dimmed">
+                      {botUser.userTag}
+                    </Text>
+                  </Stack>
+                  <Button
+                    color="red"
+                    variant="light"
+                    loading={loading}
+                    disabled={loading}
+                    onClick={() => handleRemoveBot(botUser.userId)}
+                  >
+                    Удалить бота
+                  </Button>
+                </Group>
+              ))}
+            </Stack>
+          )}
           {activeSetting === 'deleteServer' && <DeleteServer />}
         </ScrollArea>
       </Group>

@@ -1,16 +1,9 @@
 import { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { ReactNode, useEffect, useRef, useState } from 'react';
 
-import { clearTokens, refreshTokens } from '~/entities/user';
-import { useAppDispatch, useAppSelector } from '~/hooks';
+import { clearTokens, getUserProfile, refreshTokens } from '~/entities/user';
+import { useAppDispatch } from '~/hooks';
 import { api } from '~/shared/api';
-import { TokenType } from '~/shared/lib/types';
-
-const EXCLUDED_FROM_ACCESS_TOKEN = [
-  '/auth/registration',
-  '/auth/login',
-  '/auth/refresh',
-];
 
 type Props = {
   children: ReactNode;
@@ -19,30 +12,20 @@ type Props = {
 export const ApiProvider = ({ children }: Props) => {
   const dispatch = useAppDispatch();
   const [isInitialized, setIsInitialized] = useState(false);
-  const { accessToken, refreshToken } = useAppSelector(
-    (state) => state.userStore,
-  );
-
-  const tokensRef = useRef({ access: '', refresh: '' });
   const isRefreshingRef = useRef(false);
   const failedQueueRef = useRef<
     {
-      resolve: (value?: unknown) => void;
+      resolve: () => void;
       reject: (error?: unknown) => void;
     }[]
   >([]);
 
-  useEffect(() => {
-    tokensRef.current.access = accessToken || '';
-    tokensRef.current.refresh = refreshToken || '';
-  }, [accessToken, refreshToken]);
-
-  const processQueue = (error: unknown, token: string | null = null) => {
+  const processQueue = (error: unknown) => {
     failedQueueRef.current.forEach((prom) => {
       if (error) {
         prom.reject(error);
       } else {
-        prom.resolve(token);
+        prom.resolve();
       }
     });
 
@@ -52,16 +35,7 @@ export const ApiProvider = ({ children }: Props) => {
   useEffect(() => {
     const requestInterceptor = api.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
-        const url = config.url || '';
-
-        if (!EXCLUDED_FROM_ACCESS_TOKEN.includes(url)) {
-          const token =
-            tokensRef.current.access || localStorage.getItem(TokenType.ACCESS);
-
-          if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-          }
-        }
+        config.withCredentials = true;
 
         return config;
       },
@@ -71,20 +45,18 @@ export const ApiProvider = ({ children }: Props) => {
     const responseInterceptor = api.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
-        const originalRequest = error.config as InternalAxiosRequestConfig;
+        const originalRequest = error.config as
+          | (InternalAxiosRequestConfig & { _retry?: boolean })
+          | undefined;
 
         if (
           error.response?.status === 401 &&
-          !originalRequest.url?.includes('/auth/logout')
+          originalRequest &&
+          !originalRequest.url?.includes('/auth/logout') &&
+          !originalRequest.url?.includes('/auth/refresh')
         ) {
-          const refreshTokenValue =
-            tokensRef.current.refresh ||
-            localStorage.getItem(TokenType.REFRESH);
-
-          if (!refreshTokenValue || originalRequest.url?.includes('/refresh')) {
+          if (originalRequest._retry) {
             dispatch(clearTokens());
-            localStorage.removeItem(TokenType.ACCESS);
-            localStorage.removeItem(TokenType.REFRESH);
 
             return Promise.reject(error);
           }
@@ -92,10 +64,7 @@ export const ApiProvider = ({ children }: Props) => {
           if (isRefreshingRef.current) {
             return new Promise((resolve, reject) => {
               failedQueueRef.current.push({
-                resolve: (token) => {
-                  if (token && originalRequest.headers) {
-                    originalRequest.headers.Authorization = `Bearer ${token}`;
-                  }
+                resolve: () => {
                   resolve(api(originalRequest));
                 },
                 reject: (err) => {
@@ -106,29 +75,19 @@ export const ApiProvider = ({ children }: Props) => {
           }
 
           isRefreshingRef.current = true;
+          originalRequest._retry = true;
 
           try {
-            const response = await dispatch(
-              refreshTokens({ refreshToken: refreshTokenValue }),
-            ).unwrap();
+            await dispatch(refreshTokens()).unwrap();
+            processQueue(null);
 
-            const newAccessToken = response.accessToken;
-            const newRefreshToken = response.refreshToken;
-
-            localStorage.setItem(TokenType.ACCESS, newAccessToken);
-            localStorage.setItem(TokenType.REFRESH, newRefreshToken);
-
-            api.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
-            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-
-            processQueue(null, newAccessToken);
-
-            return api(originalRequest);
+            return api({
+              ...originalRequest,
+              withCredentials: true,
+            });
           } catch (refreshError) {
-            processQueue(refreshError, null);
+            processQueue(refreshError);
             dispatch(clearTokens());
-            localStorage.removeItem(TokenType.ACCESS);
-            localStorage.removeItem(TokenType.REFRESH);
 
             return Promise.reject(refreshError);
           } finally {
@@ -140,7 +99,12 @@ export const ApiProvider = ({ children }: Props) => {
       },
     );
 
-    setIsInitialized(true);
+    dispatch(getUserProfile())
+      .unwrap()
+      .catch(() => undefined)
+      .finally(() => {
+        setIsInitialized(true);
+      });
 
     return () => {
       api.interceptors.request.eject(requestInterceptor);

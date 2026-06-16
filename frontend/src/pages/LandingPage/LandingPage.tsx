@@ -5,14 +5,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAppSelector } from '~/hooks';
 
 export const LandingPage = () => {
-  const { accessToken } = useAppSelector((state) => state.userStore);
+  const { isLoggedIn } = useAppSelector((state) => state.userStore);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (accessToken) {
+    if (isLoggedIn) {
       navigate('/main');
     }
-  }, [accessToken, navigate]);
+  }, [isLoggedIn, navigate]);
 
   return (
     <Flex
@@ -34,6 +34,11 @@ export const LandingPage = () => {
         <Link to="/register">
           <Button variant="filled" radius="md">
             Зарегистрироваться
+          </Button>
+        </Link>
+        <Link to="/bots">
+          <Button variant="light" radius="md">
+            Выбрать бота
           </Button>
         </Link>
       </Group>

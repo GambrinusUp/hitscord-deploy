@@ -25,7 +25,7 @@ import {
 export const Register = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { accessToken } = useAppSelector((state) => state.userStore);
+  const { isLoggedIn } = useAppSelector((state) => state.userStore);
 
   const form = useForm({
     initialValues: {
@@ -58,10 +58,10 @@ export const Register = () => {
   };
 
   useEffect(() => {
-    if (accessToken) {
+    if (isLoggedIn) {
       navigate('/main');
     }
-  }, [accessToken, navigate]);
+  }, [isLoggedIn, navigate]);
 
   return (
     <Card

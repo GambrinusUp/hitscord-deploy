@@ -63,7 +63,7 @@ export const MainPage = () => {
         }),
       );
     }
-  }, [activeChannelId, dispatch]);
+  }, [activeChannelId, dispatch, startMessageId]);
 
   return (
     <Box style={{ display: 'flex', height: '100dvh', position: 'relative' }}>
@@ -90,6 +90,7 @@ export const MainPage = () => {
         </>
       )}
       <Box
+        visibleFrom="sm"
         style={{
           position: 'fixed',
           bottom: 5,

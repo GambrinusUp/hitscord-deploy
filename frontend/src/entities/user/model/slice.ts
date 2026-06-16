@@ -12,11 +12,9 @@ import {
   registerUser,
 } from './actions';
 import { USER_SLICE_NAME } from './const';
-import { LoginResponse, SettingType, User, UserState } from './types';
+import { SettingType, User, UserState } from './types';
 
 import { LoadingState } from '~/shared';
-import { TokenType } from '~/shared/lib/types';
-import { loadTokenFromLocalStorage } from '~/shared/lib/utils';
 
 const initialState: UserState = {
   user: {
@@ -32,9 +30,9 @@ const initialState: UserState = {
     notificationLifeTime: 0,
     systemRoles: []
   },
-  accessToken: loadTokenFromLocalStorage(TokenType.ACCESS),
-  refreshToken: loadTokenFromLocalStorage(TokenType.REFRESH),
-  isLoggedIn: !!loadTokenFromLocalStorage(TokenType.ACCESS),
+  accessToken: '',
+  refreshToken: '',
+  isLoggedIn: false,
   error: '',
   loading: LoadingState.IDLE,
 };
@@ -68,25 +66,15 @@ export const UserSlice = createSlice({
     builder
       .addCase(
         registerUser.fulfilled,
-        (state, action: PayloadAction<LoginResponse>) => {
+        (state) => {
           state.error = '';
-          state.accessToken = action.payload.accessToken;
-          state.refreshToken = action.payload.refreshToken;
-          localStorage.setItem(TokenType.ACCESS, action.payload.accessToken);
-          localStorage.setItem(TokenType.REFRESH, action.payload.refreshToken);
           state.isLoggedIn = true;
         },
       )
       .addCase(
         loginUser.fulfilled,
-        (state, action: PayloadAction<LoginResponse>) => {
-          //console.log(action.payload);
-
+        (state) => {
           state.error = '';
-          state.accessToken = action.payload.accessToken;
-          state.refreshToken = action.payload.refreshToken;
-          localStorage.setItem(TokenType.ACCESS, action.payload.accessToken);
-          localStorage.setItem(TokenType.REFRESH, action.payload.refreshToken);
           state.isLoggedIn = true;
         },
       )
@@ -95,6 +83,7 @@ export const UserSlice = createSlice({
         (state, action: PayloadAction<User>) => {
           state.error = '';
           state.user = action.payload;
+          state.isLoggedIn = true;
         },
       )
       .addCase(logoutUser.fulfilled, (state) => {
@@ -102,41 +91,27 @@ export const UserSlice = createSlice({
         state.error = '';
         state.accessToken = '';
         state.refreshToken = '';
-        localStorage.setItem(TokenType.ACCESS, '');
-        localStorage.setItem(TokenType.REFRESH, '');
       })
       .addCase(logoutUser.rejected, (state, action) => {
         state.isLoggedIn = false;
         state.error = action.payload as string;
         state.accessToken = '';
         state.refreshToken = '';
-        localStorage.setItem(TokenType.ACCESS, '');
-        localStorage.setItem(TokenType.REFRESH, '');
       })
       .addCase(refreshTokens.pending, (state) => {
         state.error = '';
-        state.accessToken = '';
-        state.refreshToken = '';
         state.loading = LoadingState.PENDING;
       })
-      .addCase(
-        refreshTokens.fulfilled,
-        (state, action: PayloadAction<LoginResponse>) => {
-          state.error = '';
-          state.loading = LoadingState.FULFILLED;
-          state.accessToken = action.payload.accessToken;
-          state.refreshToken = action.payload.refreshToken;
-          localStorage.setItem(TokenType.ACCESS, action.payload.accessToken);
-          localStorage.setItem(TokenType.REFRESH, action.payload.refreshToken);
-        },
-      )
+      .addCase(refreshTokens.fulfilled, (state) => {
+        state.error = '';
+        state.loading = LoadingState.FULFILLED;
+        state.isLoggedIn = true;
+      })
       .addCase(refreshTokens.rejected, (state, action) => {
         state.error = action.payload as string;
         state.loading = LoadingState.REJECTED;
         state.accessToken = '';
         state.refreshToken = '';
-        localStorage.setItem(TokenType.ACCESS, '');
-        localStorage.setItem(TokenType.REFRESH, '');
         state.isLoggedIn = false;
       })
       .addCase(changeSettings.fulfilled, (state, { meta }) => {

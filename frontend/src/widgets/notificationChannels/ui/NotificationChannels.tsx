@@ -16,7 +16,8 @@ export const NotificationChannels = () => {
   const dispatch = useAppDispatch();
   const [opened, { toggle }] = useDisclosure(true);
   const { serverData } = useAppSelector((state) => state.testServerStore);
-  const canWorkChannels = serverData.permissions.canWorkChannels;
+  const canWorkChannels =
+    serverData.isCreator || serverData.permissions.canWorkChannels;
 
   const handleOpenChannel = (channelId: string) => {
     dispatch(setCurrentNotificationChannelId(channelId));

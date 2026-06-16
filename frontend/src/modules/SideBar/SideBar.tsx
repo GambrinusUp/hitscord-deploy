@@ -119,7 +119,6 @@ export const SideBar = ({ onClose }: SideBarProps) => {
         gap="xs"
         bg="#1A1B1E"
         p={`10px 10px ${isConnected ? 130 : 85}px 10px`}
-        //w={{ base: 150, lg: 250 }}
         miw={250}
         maw={250}
         h="100%"
@@ -128,22 +127,24 @@ export const SideBar = ({ onClose }: SideBarProps) => {
         <Menu shadow="md" width={200}>
           <Menu.Target>
             <Tooltip label={serverData.serverName}>
-              <Group justify="space-between" style={{ cursor: 'pointer' }}>
-                {isLoading ? (
-                  <Skeleton height={10} width="40%" radius="md" />
-                ) : (
-                  <Text
-                    style={{
-                      wordWrap: 'break-word',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      maxWidth: 190,
-                    }}
-                    lineClamp={1}
-                  >
-                    {serverData.serverName}
-                  </Text>
-                )}
+              <Group justify="space-between" style={{ cursor: 'pointer' }} wrap="nowrap">
+                <Group gap="xs" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+                  {isLoading ? (
+                    <Skeleton height={10} width="40%" radius="md" />
+                  ) : (
+                    <Text
+                      style={{
+                        wordWrap: 'break-word',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        maxWidth: 150,
+                      }}
+                      lineClamp={1}
+                    >
+                      {serverData.serverName}
+                    </Text>
+                  )}
+                </Group>
                 <ChevronDown />
               </Group>
             </Tooltip>

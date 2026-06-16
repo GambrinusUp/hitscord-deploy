@@ -109,6 +109,7 @@ export interface Role {
   tag: string;
   color: string;
   type: RoleType;
+  position?: number;
 }
 
 export interface UserOnServer {
@@ -135,6 +136,7 @@ export interface TextChannel {
   nonReadedTaggedCount: number;
   lastReadedMessageId: number;
   rolesCanWrite: UserRoleOnServer[];
+  lastReadedMessage?: ChannelMessage | null;
 }
 
 export enum MuteStatus {
@@ -181,6 +183,32 @@ export interface NotificationChannel {
   lastReadedMessageId: number;
 }
 
+export type RawServerChannelType =
+  | 'Text'
+  | 'Voice'
+  | 'Notification'
+  | 'PairVoice'
+  | 'Queue'
+  | 'Lesson';
+
+export interface RawServerChannelItem {
+  position: number;
+  type: RawServerChannelType;
+  textChannel: TextChannel | null;
+  voiceChannel: VoiceChannel | null;
+  notificationChannel: NotificationChannel | null;
+  pairVoiceChannel: VoiceChannel | null;
+  queueChannel: VoiceChannel | null;
+  lessonChannel: VoiceChannel | null;
+}
+
+export interface RawServerChannelGroup {
+  groupId: string | null;
+  groupName: string | null;
+  position: number;
+  channels: RawServerChannelItem[];
+}
+
 export interface ServerData {
   serverId: string;
   serverName: string;
@@ -208,6 +236,16 @@ export interface ServerData {
     notificationChannels: NotificationChannel[];
   };
   invitationString: string | null;
+}
+
+export interface RawServerData
+  extends Omit<ServerData, 'channels' | 'permissions' | 'invitationString'> {
+  permissions: ServerData['permissions'] & {
+    canCreateLessons?: boolean;
+    canCheckAttendance?: boolean;
+    canCheckGrades?: boolean;
+  };
+  channelGroups: RawServerChannelGroup[];
 }
 
 export interface ServerItem {

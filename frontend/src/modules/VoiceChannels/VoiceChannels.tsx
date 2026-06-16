@@ -50,7 +50,8 @@ export const VoiceChannels = () => {
       (producer) =>
         producer.source === 'screen-video' || producer.source === 'camera',
     );
-  const canWorkChannels = serverData.permissions.canWorkChannels;
+  const canWorkChannels =
+    serverData.isCreator || serverData.permissions.canWorkChannels;
   const canIgnoreMaxCount = serverData.permissions.canIgnoreMaxCount;
 
   const handleConnect = async (channelId: string, maxCount: number) => {
@@ -68,13 +69,7 @@ export const VoiceChannels = () => {
       dispatch(setCurrentVoiceChannelId(channelId));
       dispatch(setCurrentVoiceChannelName(channelId));
       dispatch(setCurrentVoiceChannelServerId(serverData.serverId));
-      await connect(
-        channelId,
-        user.name,
-        user.id,
-        serverData.serverId,
-        accessToken,
-      );
+      connect(channelId, user.name, user.id, serverData.serverId, accessToken);
     } else {
       if (channelId === currentVoiceChannelId) {
         dispatch(toggleUserStreamView());
@@ -86,7 +81,7 @@ export const VoiceChannels = () => {
         dispatch(setCurrentVoiceChannelId(channelId));
         dispatch(setCurrentVoiceChannelName(channelId));
         dispatch(setCurrentVoiceChannelServerId(serverData.serverId));
-        await connect(
+        connect(
           channelId,
           user.name,
           user.id,
@@ -132,7 +127,9 @@ export const VoiceChannels = () => {
       'kickUser',
       { targetSocketId: socketId },
       (response: { success: boolean; message: string }) => {
-        if (!response.success) {
+        if (response.success) {
+          console.log('Пользователь успешно кикнут:', response.message);
+        } else {
           console.error('Ошибка кикания пользователя:', response.message);
         }
       },
@@ -153,6 +150,8 @@ export const VoiceChannels = () => {
   };
 
   const handleMuteUser = (userId: string, isMuted: boolean | undefined) => {
+    console.log(isMuted);
+
     if (isMuted) {
       socket.emit(
         'unmuteUserById',
@@ -163,7 +162,7 @@ export const VoiceChannels = () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (response: any) => {
           if (response.success) {
-            // User unmuted
+            console.log(response.message);
           } else {
             console.error('Ошибка при анмуте:', response.message);
           }
@@ -179,7 +178,7 @@ export const VoiceChannels = () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (response: any) => {
           if (response.success) {
-            // User muted
+            console.log(response.message);
           } else {
             console.error('Ошибка при муте:', response.message);
           }
@@ -278,7 +277,8 @@ export const VoiceChannels = () => {
 
                           return bPriority - aPriority;
                         })
-                        .map(([socketId, { producers, userName, userId }]) => {
+                        .map(
+                        ([socketId, { producers, userName, userId }]) => {
                           const producerIds = producers.map(
                             (producer) => producer.producerId,
                           );
@@ -308,7 +308,8 @@ export const VoiceChannels = () => {
                               handleMuteUser={handleMuteUser}
                             />
                           );
-                        }),
+                        },
+                      ),
                     )}
                 </Stack>
               </React.Fragment>

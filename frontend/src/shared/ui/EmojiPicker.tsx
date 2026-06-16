@@ -14,6 +14,7 @@ export const EmojiPicker = ({ onSelect }: Props) => {
       data={data}
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onEmojiSelect={(emoji: any) => {
+        console.log(emoji);
         onSelect(emoji.native);
         //onSelect(emoji.unified);
       }}

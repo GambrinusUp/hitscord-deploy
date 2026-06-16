@@ -5,6 +5,52 @@ import {
   GetServersResponse,
   ServerData,
 } from '~/store/ServerStore';
+import { RawServerData } from '~/store/ServerStore/ServerStore.types';
+
+const mapServerData = (data: RawServerData): ServerData => {
+  const flattenedChannels = data.channelGroups.flatMap((group) => group.channels);
+  const canWorkChannels = data.isCreator || data.permissions.canWorkChannels;
+
+  return {
+    serverId: data.serverId,
+    serverName: data.serverName,
+    serverType: data.serverType,
+    icon: data.icon,
+    isClosed: data.isClosed,
+    roles: data.roles,
+    userRoles: data.userRoles,
+    isCreator: data.isCreator,
+    permissions: {
+      canChangeRole: data.permissions.canChangeRole,
+      canWorkChannels,
+      canDeleteUsers: data.permissions.canDeleteUsers,
+      canMuteOther: data.permissions.canMuteOther,
+      canDeleteOthersMessages: data.permissions.canDeleteOthersMessages,
+      canIgnoreMaxCount: data.permissions.canIgnoreMaxCount,
+      canCreateRoles: data.permissions.canCreateRoles,
+      canUseInvitations: data.permissions.canUseInvitations,
+    },
+    isNotifiable: data.isNotifiable,
+    users: data.users,
+    channels: {
+      textChannels: flattenedChannels
+        .filter((channel) => channel.textChannel !== null)
+        .map((channel) => channel.textChannel!),
+      voiceChannels: flattenedChannels.flatMap((channel) =>
+        [
+          channel.voiceChannel,
+          channel.pairVoiceChannel,
+          channel.queueChannel,
+          channel.lessonChannel,
+        ].filter((item): item is NonNullable<typeof item> => item !== null),
+      ),
+      notificationChannels: flattenedChannels
+        .filter((channel) => channel.notificationChannel !== null)
+        .map((channel) => channel.notificationChannel!),
+    },
+    invitationString: null,
+  };
+};
 
 export const getServers = async (): Promise<GetServersResponse> => {
   const { data } = await api.get('/server/get/List');
@@ -13,11 +59,11 @@ export const getServers = async (): Promise<GetServersResponse> => {
 };
 
 export const getServerData = async (serverId: string): Promise<ServerData> => {
-  const { data } = await api.get('/server/getserverdata', {
+  const { data } = await api.get<RawServerData>('/server/getserverdata', {
     params: { serverId },
   });
 
-  return data;
+  return mapServerData(data);
 };
 
 export const createServer = async (
@@ -197,7 +243,7 @@ export const changeNotifiable = async (serverId: string): Promise<void> => {
 
 export const createInvitation = async (
   serverId: string,
-  expiredAt?: string,
+  expiredAt: string,
 ): Promise<{
   invitationString: string;
 }> => {

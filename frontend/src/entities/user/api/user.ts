@@ -15,7 +15,6 @@ import { FileResponse } from '~/entities/files';
 import {
   ChangeProfileData,
   LoginCredentials,
-  LoginResponse,
   RegisterCredentials,
   SettingType,
   User,
@@ -25,18 +24,14 @@ import { api } from '~/shared/api';
 
 export const registerUser = async (
   registerData: RegisterCredentials,
-): Promise<LoginResponse> => {
-  const { data } = await api.post(REGISTER_USER, { ...registerData });
-
-  return data;
+): Promise<void> => {
+  await api.post(REGISTER_USER, { ...registerData });
 };
 
 export const loginUser = async (
   loginData: LoginCredentials,
-): Promise<LoginResponse> => {
-  const { data } = await api.post(LOGIN_USER, { ...loginData });
-
-  return data;
+): Promise<void> => {
+  await api.post(LOGIN_USER, { ...loginData });
 };
 
 export const getProfile = async (): Promise<User> => {
@@ -49,18 +44,8 @@ export const logout = async (): Promise<void> => {
   await api.delete(LOGOUT);
 };
 
-export const refresh = async (refreshToken: string): Promise<LoginResponse> => {
-  const { data } = await api.post(
-    REFRESH,
-    {},
-    {
-      headers: {
-        Authorization: `Bearer ${refreshToken}`,
-      },
-    },
-  );
-
-  return data;
+export const refresh = async (): Promise<void> => {
+  await api.post(REFRESH);
 };
 
 export const changeSettings = async (type: SettingType): Promise<void> => {

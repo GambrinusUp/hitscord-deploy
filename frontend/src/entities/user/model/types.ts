@@ -13,11 +13,6 @@ export interface LoginCredentials {
   password: string;
 }
 
-export interface LoginResponse {
-  accessToken: string;
-  refreshToken: string;
-}
-
 export interface UserSystemRole {
   name: string;
   type: SystemRoleTypeEnum;

@@ -11,6 +11,7 @@ import { HashRouter as Router, Route, Routes } from 'react-router-dom';
 import { AudioProvider } from './context/AudioContext';
 import { MediaProvider } from './context/MediaContext';
 import { AuthPage } from './pages/AuthPage';
+import { BotsPage } from './pages/BotsPage';
 import { InvitationPage } from './pages/InvitationPage';
 import { LandingPage } from './pages/LandingPage';
 import { MainPage } from './pages/MainPage';
@@ -38,6 +39,7 @@ const App = () => {
                   <Routes>
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/main" element={<MainPage />} />
+                    <Route path="/bots" element={<BotsPage />} />
                     <Route path="/login" element={<AuthPage />} />
                     <Route path="/register" element={<RegistrationPage />} />
                     <Route path="/invite/:code" element={<InvitationPage />} />
