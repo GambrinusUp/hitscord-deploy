@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   traefik:
-    image: traefik:v3.1
+    image: traefik:v3
     container_name: traefik
     environment:
       - DOCKER_API_VERSION=1.40
@@ -39,6 +39,7 @@ services:
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls=true"
       - "traefik.http.routers.frontend.tls.certresolver=le"
+      - "traefik.http.routers.frontend.priority=1"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
       - "traefik.http.routers.frontend-legacy.rule=Host(`${DOMAIN}`) && PathPrefix(`/hitscord-frontend`)"
       - "traefik.http.routers.frontend-legacy.entrypoints=websecure"
@@ -55,15 +56,18 @@ services:
       context: ./bot-panel
       args:
         VITE_BASE_URL: ${VITE_BASE_URL}
-        VITE_APP_BASE: /
+        VITE_APP_BASE: /bot-panel/
     container_name: hitscord-bot-panel
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.bot-panel.rule=Host(`${BOT_PANEL_DOMAIN}`)"
+      - "traefik.http.routers.bot-panel.rule=Host(`${BOT_PANEL_DOMAIN}`) && PathPrefix(`/bot-panel`)"
       - "traefik.http.routers.bot-panel.entrypoints=websecure"
       - "traefik.http.routers.bot-panel.tls=true"
       - "traefik.http.routers.bot-panel.tls.certresolver=le"
+      - "traefik.http.routers.bot-panel.priority=100"
       - "traefik.http.services.bot-panel.loadbalancer.server.port=80"
+      - "traefik.http.routers.bot-panel.middlewares=bot-panel-stripprefix"
+      - "traefik.http.middlewares.bot-panel-stripprefix.stripprefix.prefixes=/bot-panel"
     networks:
       - web
     restart: unless-stopped

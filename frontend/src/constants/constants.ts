@@ -1,4 +1,4 @@
-export const API_URL = 'https://hitscord.online';
+export const API_URL = 'https://hitscord.site';
 export const WEBSOCKET_MEDIA_URL = 'https://hitscord.online/mediasoup'; // https://192.168.0.101:3000/mediasoup
 //export const WEBSOCKET_MEDIA_URL = 'https://192.168.0.12:3000/mediasoup';
 export const MAX_MESSAGE_NUMBER = 15;
