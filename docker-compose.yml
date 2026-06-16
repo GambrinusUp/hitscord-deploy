@@ -40,6 +40,24 @@ services:
       - web
     restart: unless-stopped
 
+  bot-panel:
+    build:
+      context: ./bot-panel
+      args:
+        VITE_BASE_URL: ${VITE_BASE_URL}
+        VITE_APP_BASE: /
+    container_name: hitscord-bot-panel
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bot-panel.rule=Host(`${BOT_PANEL_DOMAIN}`)"
+      - "traefik.http.routers.bot-panel.entrypoints=websecure"
+      - "traefik.http.routers.bot-panel.tls=true"
+      - "traefik.http.routers.bot-panel.tls.certresolver=le"
+      - "traefik.http.services.bot-panel.loadbalancer.server.port=80"
+    networks:
+      - web
+    restart: unless-stopped
+
   media-server:
     build:
       context: ./media-server

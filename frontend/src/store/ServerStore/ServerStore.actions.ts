@@ -716,7 +716,7 @@ export const changeSubChannelSettings = createAsyncThunk<
 
 export const createInvitation = createAsyncThunk<
   { invitationString: string },
-  { serverId: string; expiredAt: string },
+  { serverId: string; expiredAt?: string },
   { rejectValue: string }
 >(
   'testServerSlice/createInvitation',
