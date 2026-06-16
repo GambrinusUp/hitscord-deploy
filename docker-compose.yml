@@ -8,6 +8,8 @@ services:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
       - --entrypoints.websecure.address=:443
       - --certificatesresolvers.le.acme.tlschallenge=true
       - --certificatesresolvers.le.acme.email=${LETSENCRYPT_EMAIL}
@@ -36,6 +38,12 @@ services:
       - "traefik.http.routers.frontend.tls=true"
       - "traefik.http.routers.frontend.tls.certresolver=le"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
+      - "traefik.http.routers.frontend-legacy.rule=Host(`${DOMAIN}`) && PathPrefix(`/hitscord-frontend`)"
+      - "traefik.http.routers.frontend-legacy.entrypoints=websecure"
+      - "traefik.http.routers.frontend-legacy.tls=true"
+      - "traefik.http.routers.frontend-legacy.tls.certresolver=le"
+      - "traefik.http.routers.frontend-legacy.middlewares=frontend-legacy-stripprefix"
+      - "traefik.http.middlewares.frontend-legacy-stripprefix.stripprefix.prefixes=/hitscord-frontend"
     networks:
       - web
     restart: unless-stopped
