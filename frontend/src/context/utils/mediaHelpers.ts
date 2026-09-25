@@ -49,6 +49,33 @@ export const calculateMicGain = (settings: MicSettings) => {
   return (volume / 100) * dbGain;
 };
 
+const createSilentMicAudioState = async (): Promise<MicAudioState> => {
+  const audioContext = new AudioContext();
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+  const destination = audioContext.createMediaStreamDestination();
+
+  oscillator.type = 'sine';
+  oscillator.frequency.value = 0;
+  gainNode.gain.value = 0;
+  oscillator.connect(gainNode).connect(destination);
+  oscillator.start();
+
+  if (audioContext.state === 'suspended') {
+    await audioContext.resume();
+  }
+
+  const processedTrack = destination.stream.getAudioTracks()[0];
+  const rawTrack = processedTrack;
+
+  return {
+    rawTrack,
+    processedTrack,
+    audioContext,
+    gainNode,
+  };
+};
+
 export const getLocalAudioStream = async (
   settings?: MicSettings,
 ): Promise<MicAudioState | null> => {
@@ -71,19 +98,12 @@ export const getLocalAudioStream = async (
       audio: buildConstraints(micSettings.inputDeviceId),
     });
   } catch (_error) {
-    /*if (!micSettings.inputDeviceId) {
-      throw error;
-    }
-
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: buildConstraints(null),
-    });*/
-     try {
+    try {
       stream = await navigator.mediaDevices.getUserMedia({
         audio: buildConstraints(null),
       });
     } catch {
-      return null;
+      return createSilentMicAudioState();
     }
   }
 
